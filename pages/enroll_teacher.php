@@ -6,6 +6,9 @@ error_reporting(E_ALL);
 
 include '../includes/db_connection.php';
 /* ===================== AUTH CHECK ===================== */
+
+
+
 if (
     !isset($_SESSION['user_id']) ||
     !isset($_SESSION['user_role']) ||
@@ -16,7 +19,6 @@ if (
     header("Location: ../index.php");
     exit;
 }
-
 
 
 
