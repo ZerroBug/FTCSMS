@@ -3,7 +3,7 @@ session_start();
 require_once '../includes/db_connection.php';
 
 /* ===================== SECURITY ===================== */
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     header("Location: ../index.php");
     exit;
 }
