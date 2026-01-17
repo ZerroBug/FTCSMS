@@ -1,7 +1,6 @@
  <?php
 session_start();
-include __DIR__ . '/../includes/db_connection.php';
-
+include '../includes/db_connection.php';
 /* ===================== AUTH CHECK ===================== */
 if (
     !isset($_SESSION['user_id']) ||
@@ -147,9 +146,9 @@ if ($_SESSION['user_role'] === 'Super_Admin') {
 
                                  </div>
 
-                                 <div class="col-md-6" id="emailWrapper" style="display:none;>
+                                 <div class="col-md-6" id="emailWrapper" style="display:none" ;>
                                      <label class=" form-label">
-                                     Email <span class="text-danger">*</span>
+                                         Email <span class="text-danger">*</span>
                                      </label>
                                      <input type="email" name="email" id="emailInput"
                                          class="form-control form-control-lg">
