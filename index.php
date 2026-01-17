@@ -493,7 +493,7 @@ session_start();
 
         <!-- LEFT -->
         <div class="login-left">
-            <img src="assets/images/logo.png" alt="FTCSMS Logo">
+            <img src="assets/images/logo.png" alt="ftcsms Logo">
             <h2>Welcome Back</h2>
             <p>Sign in to continue to <strong>FTCSMS</strong>.</p>
             <p>
