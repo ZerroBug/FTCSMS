@@ -1,17 +1,30 @@
 <?php
 session_start();
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+/* ===================== ALERT HELPER ===================== */
+function alert($type, $msg) {
+    return "
+    <div class='alert alert-$type alert-dismissible fade show shadow-sm' role='alert'>
+        $msg
+        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+    </div>";
+}
+
 require_once '../includes/db_connection.php';
 
 /* ===================== SECURITY ===================== */
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: ../index.php");
     exit;
 }
 
 /* ===================== INPUT ===================== */
-$login    = trim($_POST['email'] ?? ''); // email OR phone
+$login = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
-
 
 if (!$login || !$password) {
     $_SESSION['alert'] = alert('danger', 'Email / Phone and password are required.');
@@ -21,19 +34,10 @@ if (!$login || !$password) {
 
 /* ===================== FETCH USER ===================== */
 $stmt = $pdo->prepare("
-    SELECT 
-        id,
-        first_name,
-        surname,
-        email,
-        phone,
-        role,
-        password,
-        status,
-        photo
-    FROM users
-    WHERE email = ? OR phone = ?
-    LIMIT 1
+SELECT id, first_name, surname, email, phone, role, password, status, photo
+FROM users
+WHERE email = ? OR phone = ?
+LIMIT 1
 ");
 
 $stmt->execute([$login, $login]);
@@ -56,44 +60,29 @@ if ($user['status'] !== 'active') {
 /* ===================== LOGIN SUCCESS ===================== */
 session_regenerate_id(true);
 
-$_SESSION['user_id']    = $user['id'];
-$_SESSION['user_name']  = $user['first_name'] . ' ' . $user['surname'];
+$_SESSION['user_id'] = $user['id'];
+$_SESSION['user_name'] = $user['first_name'] . ' ' . $user['surname'];
 $_SESSION['user_email'] = $user['email'];
 $_SESSION['user_phone'] = $user['phone'];
-$_SESSION['user_role']  = $user['role'];
+$_SESSION['user_role'] = $user['role'];
 $_SESSION['user_photo'] = $user['photo'];
 
 /* ===================== ROLE REDIRECT ===================== */
 switch ($user['role']) {
-
     case 'Super_Admin':
         header("Location: ../pages/dashboard.php");
         break;
-
     case 'Administrator':
         header("Location: ../pages/administrator_dashboard.php");
         break;
-
     case 'Accountant':
         header("Location: ../pages/accounts_dashboard.php");
         break;
-
     case 'Store':
         header("Location: ../pages/store/dashboard.php");
         break;
-
     default:
         $_SESSION['alert'] = alert('danger', 'Unauthorized role.');
         header("Location: ../index.php");
 }
-
 exit;
-
-/* ===================== ALERT HELPER ===================== */
-function alert($type, $msg) {
-    return "
-    <div class='alert alert-$type alert-dismissible fade show shadow-sm' role='alert'>
-        $msg
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
-}
