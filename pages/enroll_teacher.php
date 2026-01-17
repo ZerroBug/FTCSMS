@@ -1,6 +1,7 @@
  <?php
 session_start();
-include '../includes/db_connection.php';
+include __DIR__ . '/../includes/db_connection.php';
+
 /* ===================== AUTH CHECK ===================== */
 if (
     !isset($_SESSION['user_id']) ||

@@ -6,7 +6,7 @@
     </div>
 
     <div class="text-center mb-4">
-        <?php include $_SERVER['DOCUMENT_ROOT'] . '/ftcsms/config.php'; ?>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . '/config.php'; ?>
         <img src="<?= BASE_URL ?>assets/images/logo.png" alt="Logo" class="sidebar-logo mb-2" />
         <p class="small text-light">Fast • Reliable • Seamless</p>
     </div>
