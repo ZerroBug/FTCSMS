@@ -2,8 +2,8 @@
 session_start();
 require_once __DIR__ . '/../includes/db_connection.php';
 
-/* ===================== ERROR REPORTING (TEMP) ===================== */
-// Disable after testing
+/* ===================== ERROR REPORTING (TEMPORARY) ===================== */
+// Comment these 3 lines after testing
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -16,7 +16,7 @@ require_once __DIR__ . '/../includes/phpmailer/src/Exception.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-/* ===================== SECURITY ===================== */
+/* ===================== SECURITY CHECK ===================== */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: ../pages/enroll_teacher.php");
     exit;
@@ -29,13 +29,14 @@ try {
     $surname     = trim($_POST['surname'] ?? '');
     $other_names = trim($_POST['other_names'] ?? '');
 
+    // ✅ FIX: Normalize DATE fields
     $dob = !empty($_POST['dob']) ? $_POST['dob'] : null;
     $employment_date = !empty($_POST['employment_date']) ? $_POST['employment_date'] : null;
 
     $gender      = $_POST['gender'] ?? '';
     $staff_type  = $_POST['staff_type'] ?? '';
     $email       = trim($_POST['email'] ?? '');
-    $phone       = preg_replace('/\D+/', '', $_POST['phone'] ?? '');
+    $phone       = trim($_POST['phone'] ?? '');
     $nationality = trim($_POST['nationality'] ?? '');
     $religion    = trim($_POST['religion'] ?? '');
     $address     = trim($_POST['address'] ?? '');
@@ -60,7 +61,7 @@ try {
         if (empty($value)) $missing[] = $key;
     }
 
-    if ($missing) {
+    if (!empty($missing)) {
         $_SESSION['alert'] = '
         <div class="alert alert-danger alert-dismissible fade show">
             Missing fields: <strong>' . implode(', ', $missing) . '</strong>
@@ -70,36 +71,31 @@ try {
         exit;
     }
 
-    /* ===================== AUTO STAFF ID ===================== */
-    if (empty($staff_id)) {
-        $staff_id = 'FTC/STF/' . random_int(1000, 9999);
-    }
-
-    /* ===================== DUPLICATE CHECK (STRONG) ===================== */
+    /* ===================== DUPLICATE CHECK ===================== */
     $check = $pdo->prepare("
-        SELECT COUNT(*) FROM teachers
-        WHERE phone = ?
-           OR email = ?
-           OR staff_id = ?
+        SELECT COUNT(*) 
+        FROM teachers 
+        WHERE first_name = ? AND surname = ? AND phone = ?
     ");
-    $check->execute([
-        $phone,
-        $email ?: null,
-        $staff_id
-    ]);
+    $check->execute([$first_name, $surname, $phone]);
 
     if ($check->fetchColumn() > 0) {
         $_SESSION['alert'] = '
         <div class="alert alert-danger alert-dismissible fade show">
-            A staff member with this phone, email, or staff ID already exists.
+            Staff member already exists.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>';
         header("Location: ../pages/enroll_teacher.php");
         exit;
     }
 
+    /* ===================== STAFF ID ===================== */
+    if (empty($staff_id)) {
+        $staff_id = 'FTC/STF/' . rand(1000, 9999);
+    }
+
     /* ===================== PASSWORD ===================== */
-    $plain_password = null;
+    $plain_password  = null;
     $hashed_password = null;
 
     if ($staff_type === 'Teaching') {
@@ -110,9 +106,14 @@ try {
     /* ===================== PHOTO UPLOAD ===================== */
     $photo_name = null;
     if (!empty($_FILES['photo']['name'])) {
+
+        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception("Photo upload failed.");
+        }
+
         $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
-            throw new Exception("Invalid image format.");
+            throw new Exception("Only JPG and PNG files are allowed.");
         }
 
         $uploadDir = __DIR__ . '/../assets/uploads/staff/';
@@ -123,9 +124,6 @@ try {
         $photo_name = uniqid('staff_') . '.' . $ext;
         move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $photo_name);
     }
-
-    /* ===================== TRANSACTION ===================== */
-    $pdo->beginTransaction();
 
     /* ===================== INSERT STAFF ===================== */
     $stmt = $pdo->prepare("
@@ -141,41 +139,71 @@ try {
     ");
 
     $stmt->execute([
-        $staff_id, $first_name, $surname, $other_names, $dob, $gender,
-        $staff_type, $staff_type === 'Teaching' ? $email : null,
-        $phone, $nationality, $religion, $address,
-        $qualification, $employment_date, $hashed_password, $photo_name
+        $staff_id,
+        $first_name,
+        $surname,
+        $other_names,
+        $dob,
+        $gender,
+        $staff_type,
+        $staff_type === 'Teaching' ? $email : null,
+        $phone,
+        $nationality,
+        $religion,
+        $address,
+        $qualification,
+        $employment_date,
+        $hashed_password,
+        $photo_name
     ]);
 
-    /* ===================== EMAIL QUEUE (ALWAYS) ===================== */
+    /* ===================== SEND EMAIL ===================== */
+    $email_status = '';
+
     if ($staff_type === 'Teaching') {
 
         $email_body =
             "Dear {$first_name} {$surname},\n\n" .
-            "You have been enrolled as Teaching Staff.\n\n" .
-            "Login URL: https://app.fasttrack.edu.gh\n" .
+            "You have been successfully enrolled as Teaching Staff.\n\n" .
+            "Login URL: https://ftcsms.fasttrack.edu.gh\n" .
             "Email: {$email}\n" .
             "Temporary Password: {$plain_password}\n\n" .
-            "Please change your password after login.\n\nFTCSMS Team";
+            "Please change your password after login.\n\n" .
+            "FTCSMS Team";
 
-        $pdo->prepare("
-            INSERT INTO email_queue (recipient_email, recipient_name, subject, body)
-            VALUES (?, ?, ?, ?)
-        ")->execute([
-            $email,
-            "{$first_name} {$surname}",
-            "Teaching Staff Login Details",
-            $email_body
-        ]);
+        try {
+            $mail = new PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'anane2020@gmail.com';
+            $mail->Password   = 'fila oulp kopw teyv';
+            $mail->SMTPSecure = 'tls';
+            $mail->Port       = 587;
+
+            $mail->setFrom('anane2020@gmail.com', 'FAST TRACK');
+            $mail->addAddress($email, $first_name . ' ' . $surname);
+            $mail->Subject = 'Your Teaching Staff Login Details';
+            $mail->Body    = $email_body;
+
+            $mail->send();
+            $email_status = 'Email sent successfully.';
+        } catch (Exception $e) {
+            $pdo->prepare("
+                INSERT INTO email_queue (recipient_email, recipient_name, subject, body)
+                VALUES (?, ?, ?, ?)
+            ")->execute([$email, $first_name . ' ' . $surname, 'Teaching Staff Login Details', $email_body]);
+
+            $email_status = 'Email queued for later sending.';
+        }
     }
 
-    $pdo->commit();
-
+    /* ===================== SUCCESS ===================== */
     $_SESSION['alert'] = '
     <div class="alert alert-success alert-dismissible fade show">
         Staff Enrolled Successfully!<br>
         Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>
-        Email queued and will be sent automatically.
+        ' . $email_status . '
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
 
@@ -183,10 +211,6 @@ try {
     exit;
 
 } catch (Exception $e) {
-
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
 
     $_SESSION['alert'] = '
     <div class="alert alert-danger alert-dismissible fade show">
