@@ -22,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-
     /* ===================== COLLECT DATA ===================== */
     $first_name      = trim($_POST['first_name'] ?? '');
     $surname         = trim($_POST['surname'] ?? '');
@@ -32,7 +31,7 @@ try {
     $gender          = $_POST['gender'] ?? '';
     $staff_type      = $_POST['staff_type'] ?? '';
     $email           = trim($_POST['email'] ?? '');
-    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? '')); // normalize
+    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? '')); // normalize phone
     $nationality     = trim($_POST['nationality'] ?? '');
     $religion        = trim($_POST['religion'] ?? '');
     $address         = trim($_POST['address'] ?? '');
@@ -173,12 +172,12 @@ try {
         try {
             $mail = new PHPMailer(true);
             $mail->isSMTP();
-            $mail->Host       = 'mail.fasttrack.edu.gh';       // cPanel SMTP host
+            $mail->Host       = 'mail.fasttrack.edu.gh';       // Outgoing server
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'noreply@fasttrack.edu.gh';   // official sender
-            $mail->Password   = 'fasttrackAPP@';        // email password
-            $mail->SMTPSecure = 'tls';
-            $mail->Port       = 456;
+            $mail->Username   = 'noreply@fasttrack.edu.gh';   // Official sender
+            $mail->Password   = 'fasttrackAPP@';             // Email password
+            $mail->SMTPSecure = 'ssl';                        // SSL
+            $mail->Port       = 465;                          // Must match SSL port
 
             $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK');
             $mail->addAddress($email, $first_name . ' ' . $surname);
@@ -188,7 +187,7 @@ try {
             $mail->send();
             $email_status = 'Email sent successfully.';
         } catch (Exception $e) {
-            // Queue fallback
+            // Optional: queue email if failed
             $pdo->prepare("
                 INSERT INTO email_queue (recipient_email, recipient_name, subject, body)
                 VALUES (?, ?, ?, ?)
