@@ -45,7 +45,7 @@ $teacher = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$teacher || !password_verify($password, $teacher['password'])) {
     $_SESSION['alert'] = '
     <div class="alert alert-danger alert-dismissible fade show shadow-sm">
-        Invalid email/phone or password.
+        Invalid email or password.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
     header("Location: ../index.php");
