@@ -196,7 +196,7 @@ try {
         <div class='header'><h2>FAST TRACK CMS</h2></div>
         <div class='content'>
         <p>Dear <strong>{$first_name} {$surname}</strong>,</p>
-        <p>Congratulations! You have been successfully enrolled as <strong>Teaching Staff</strong> at FAST TRACK.</p>
+        <p>Congratulations! You have been successfully enrolled as <strong>Teaching Staff</strong> at FAST TRACK COLLEGE.</p>
         <p>Your login details are as follows:</p>
         <div class='credentials'>
         <p><strong>Login URL:</strong> <a href='https://app.fasttrack.edu.gh'>https://app.fasttrack.edu.gh</a></p>
@@ -205,7 +205,7 @@ try {
         </div>
         <p>Please log in and change your password immediately to keep your account secure.</p>
         <p><a href='https://app.fasttrack.edu.gh' class='button'>Login Now</a></p>
-        <p>We welcome you to the FAST TRACK family and wish you a great experience!</p>
+        <p>We welcome you to the FAST TRACK COLLEGE family and wish you a great experience!</p>
         </div>
         <div class='footer'>&copy; " . date('Y') . " FAST TRACK CMS. All rights reserved.</div>
         </div>
