@@ -171,8 +171,8 @@ try {
         $mail->SMTPSecure = 'ssl';
         $mail->Port       = 465;
 
-        $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK');
-        $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK');
+        $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
+        $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
         $mail->addAddress($email, "{$first_name} {$surname}");
         $mail->isHTML(true);
         $mail->Subject = 'Your Teaching Staff Login Details';
