@@ -2,7 +2,7 @@
 session_start();
 require_once __DIR__ . '/../includes/db_connection.php';
 
-/* ===================== ERROR REPORTING (TEMPORARY) */
+/* ===================== ERROR REPORTING (TEMPORARY) ===================== */
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -11,6 +11,7 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/../includes/phpmailer/src/PHPMailer.php';
 require_once __DIR__ . '/../includes/phpmailer/src/SMTP.php';
 require_once __DIR__ . '/../includes/phpmailer/src/Exception.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -30,7 +31,7 @@ try {
     $gender          = $_POST['gender'] ?? '';
     $staff_type      = $_POST['staff_type'] ?? '';
     $email           = trim($_POST['email'] ?? '');
-    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? ''));
+    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? '')); // normalize phone
     $nationality     = trim($_POST['nationality'] ?? '');
     $religion        = trim($_POST['religion'] ?? '');
     $address         = trim($_POST['address'] ?? '');
@@ -45,6 +46,7 @@ try {
         'Staff Type' => $staff_type,
         'Phone'      => $phone
     ];
+
     if ($staff_type === 'Teaching' && empty($email)) {
         $required['Email'] = $email;
     }
@@ -64,6 +66,7 @@ try {
     }
 
     /* ===================== DUPLICATE CHECK ===================== */
+    // Check phone (all staff)
     $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE phone = ?");
     $checkPhone->execute([$phone]);
     if ($checkPhone->fetchColumn() > 0) {
@@ -75,6 +78,7 @@ try {
         exit;
     }
 
+    // Check email (Teaching staff only)
     if ($staff_type === 'Teaching' && !empty($email)) {
         $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE email = ?");
         $checkEmail->execute([$email]);
@@ -104,11 +108,20 @@ try {
     /* ===================== PHOTO UPLOAD ===================== */
     $photo_name = null;
     if (!empty($_FILES['photo']['name'])) {
-        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) throw new Exception("Photo upload failed.");
+        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            throw new Exception("Photo upload failed.");
+        }
+
         $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['jpg','jpeg','png'])) throw new Exception("Only JPG/PNG allowed.");
+        if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
+            throw new Exception("Only JPG and PNG files are allowed.");
+        }
+
         $uploadDir = __DIR__ . '/../assets/uploads/staff/';
-        if (!is_dir($uploadDir) || !is_writable($uploadDir)) throw new Exception("Upload directory not writable.");
+        if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
+            throw new Exception("Upload directory not writable.");
+        }
+
         $photo_name = uniqid('staff_') . '.' . $ext;
         move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $photo_name);
     }
@@ -120,7 +133,10 @@ try {
             staff_type, email, phone, nationality, religion, address,
             qualification, employment_date, password, photo,
             status, created_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', NOW(), NOW())
+        ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            'active', NOW(), NOW()
+        )
     ");
 
     $stmt->execute([
@@ -144,6 +160,7 @@ try {
 
     /* ===================== EMAIL NOTIFICATION ===================== */
     $email_status = '';
+
     if ($staff_type === 'Teaching') {
         $mail = new PHPMailer(true);
         $mail->isSMTP();
@@ -156,36 +173,77 @@ try {
 
         $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK');
         $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK');
-        $mail->addAddress($email, $first_name . ' ' . $surname);
+        $mail->addAddress($email, "{$first_name} {$surname}");
+        $mail->isHTML(true);
         $mail->Subject = 'Your Teaching Staff Login Details';
-        $mail->Body    = "Dear {$first_name} {$surname},\n\nYou have been enrolled as Teaching Staff.\nLogin URL: https://ftcsms.fasttrack.edu.gh\nEmail: {$email}\nTemporary Password: {$plain_password}\n\nPlease change your password.\n\nFTCSMS Team";
+
+        $mail->Body = "
+        <html>
+        <head>
+        <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .header { text-align: center; padding-bottom: 20px; }
+        .header h2 { margin: 0; color: #004085; }
+        .content { font-size: 14px; }
+        .credentials { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 15px 0; }
+        .button { display: inline-block; padding: 10px 20px; color: #fff; background-color: #004085; text-decoration: none; border-radius: 5px; }
+        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 20px; }
+        </style>
+        </head>
+        <body>
+        <div class='container'>
+        <div class='header'><h2>FAST TRACK CMS</h2></div>
+        <div class='content'>
+        <p>Dear <strong>{$first_name} {$surname}</strong>,</p>
+        <p>Congratulations! You have been successfully enrolled as <strong>Teaching Staff</strong> at FAST TRACK.</p>
+        <p>Your login details are as follows:</p>
+        <div class='credentials'>
+        <p><strong>Login URL:</strong> <a href='https://app.fasttrack.edu.gh'>https://app.fasttrack.edu.gh</a></p>
+        <p><strong>Email:</strong> {$email}</p>
+        <p><strong>Temporary Password:</strong> {$plain_password}</p>
+        </div>
+        <p>Please log in and change your password immediately to keep your account secure.</p>
+        <p><a href='https://app.fasttrack.edu.gh' class='button'>Login Now</a></p>
+        <p>We welcome you to the FAST TRACK family and wish you a great experience!</p>
+        </div>
+        <div class='footer'>&copy; " . date('Y') . " FAST TRACK CMS. All rights reserved.</div>
+        </div>
+        </body>
+        </html>
+        ";
+
+        $mail->AltBody = "Dear {$first_name} {$surname},\n\n".
+            "You have been successfully enrolled as Teaching Staff at FAST TRACK.\n".
+            "Login URL: https://app.fasttrack.edu.gh\n".
+            "Email: {$email}\n".
+            "Temporary Password: {$plain_password}\n\n".
+            "Please change your password immediately.\n\nFAST TRACK CMS Team";
 
         try {
             $mail->send();
             $email_status = 'Email sent successfully.';
         } catch (Exception $e) {
-            // Optional: queue email if failed
-            $pdo->prepare("INSERT INTO email_queue (recipient_email, recipient_name, subject, body) VALUES (?,?,?,?)")
-                ->execute([$email, $first_name.' '.$surname, 'Teaching Staff Login Details', $mail->Body]);
-            $email_status = 'Email queued for later sending.';
+            $email_status = 'Email failed: ' . $mail->ErrorInfo;
         }
     }
 
     /* ===================== SUCCESS MESSAGE ===================== */
-    $_SESSION['alert'] = "<div class='alert alert-success alert-dismissible fade show'>
+    $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show">
         Staff Enrolled Successfully!<br>
-        Staff ID: <strong>{$staff_id}</strong><br>
-        {$email_status}
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
+        Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>
+        ' . $email_status . '
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>';
+
     header("Location: ../pages/enroll_teacher.php");
     exit;
 
 } catch (Exception $e) {
-    $_SESSION['alert'] = "<div class='alert alert-danger alert-dismissible fade show'>
-        Error: {$e->getMessage()}
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
+    $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
+        Error: ' . htmlspecialchars($e->getMessage()) . '
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>';
     header("Location: ../pages/enroll_teacher.php");
     exit;
 }
