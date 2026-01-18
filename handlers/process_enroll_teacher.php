@@ -3,7 +3,6 @@ session_start();
 require_once __DIR__ . '/../includes/db_connection.php';
 
 /* ===================== ERROR REPORTING (TEMPORARY) ===================== */
-// Comment these 3 lines after testing
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -25,25 +24,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
 
     /* ===================== COLLECT DATA ===================== */
-    $first_name  = trim($_POST['first_name'] ?? '');
-    $surname     = trim($_POST['surname'] ?? '');
-    $other_names = trim($_POST['other_names'] ?? '');
-
-    // ✅ FIX: Normalize DATE fields
-    $dob = !empty($_POST['dob']) ? $_POST['dob'] : null;
+    $first_name      = trim($_POST['first_name'] ?? '');
+    $surname         = trim($_POST['surname'] ?? '');
+    $other_names     = trim($_POST['other_names'] ?? '');
+    $dob             = !empty($_POST['dob']) ? $_POST['dob'] : null;
     $employment_date = !empty($_POST['employment_date']) ? $_POST['employment_date'] : null;
+    $gender          = $_POST['gender'] ?? '';
+    $staff_type      = $_POST['staff_type'] ?? '';
+    $email           = trim($_POST['email'] ?? '');
+    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? '')); // normalize
+    $nationality     = trim($_POST['nationality'] ?? '');
+    $religion        = trim($_POST['religion'] ?? '');
+    $address         = trim($_POST['address'] ?? '');
+    $qualification   = trim($_POST['qualification'] ?? '');
+    $staff_id        = trim($_POST['staff_id'] ?? '');
 
-    $gender      = $_POST['gender'] ?? '';
-    $staff_type  = $_POST['staff_type'] ?? '';
-    $email       = trim($_POST['email'] ?? '');
-    $phone       = trim($_POST['phone'] ?? '');
-    $nationality = trim($_POST['nationality'] ?? '');
-    $religion    = trim($_POST['religion'] ?? '');
-    $address     = trim($_POST['address'] ?? '');
-    $qualification = trim($_POST['qualification'] ?? '');
-    $staff_id    = trim($_POST['staff_id'] ?? '');
-
-    /* ===================== VALIDATION ===================== */
+    /* ===================== REQUIRED FIELD VALIDATION ===================== */
     $required = [
         'First Name' => $first_name,
         'Surname'    => $surname,
@@ -62,8 +58,7 @@ try {
     }
 
     if (!empty($missing)) {
-        $_SESSION['alert'] = '
-        <div class="alert alert-danger alert-dismissible fade show">
+        $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
             Missing fields: <strong>' . implode(', ', $missing) . '</strong>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>';
@@ -72,32 +67,41 @@ try {
     }
 
     /* ===================== DUPLICATE CHECK ===================== */
-    $check = $pdo->prepare("
-        SELECT COUNT(*) 
-        FROM teachers 
-        WHERE first_name = ? AND surname = ? AND phone = ?
-    ");
-    $check->execute([$first_name, $surname, $phone]);
 
-    if ($check->fetchColumn() > 0) {
-        $_SESSION['alert'] = '
-        <div class="alert alert-danger alert-dismissible fade show">
-            Staff member already exists.
+    // 1️⃣ Check duplicate PHONE (all staff)
+    $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE phone = ?");
+    $checkPhone->execute([$phone]);
+    if ($checkPhone->fetchColumn() > 0) {
+        $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
+            A staff member with this <strong>phone number</strong> already exists.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>';
         header("Location: ../pages/enroll_teacher.php");
         exit;
     }
 
-    /* ===================== STAFF ID ===================== */
+    // 2️⃣ Check duplicate EMAIL (Teaching staff only)
+    if ($staff_type === 'Teaching' && !empty($email)) {
+        $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE email = ?");
+        $checkEmail->execute([$email]);
+        if ($checkEmail->fetchColumn() > 0) {
+            $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
+                A staff member with this <strong>email address</strong> already exists.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>';
+            header("Location: ../pages/enroll_teacher.php");
+            exit;
+        }
+    }
+
+    /* ===================== AUTO-GENERATE STAFF ID ===================== */
     if (empty($staff_id)) {
         $staff_id = 'FTC/STF/' . rand(1000, 9999);
     }
 
-    /* ===================== PASSWORD ===================== */
+    /* ===================== PASSWORD GENERATION ===================== */
     $plain_password  = null;
     $hashed_password = null;
-
     if ($staff_type === 'Teaching') {
         $plain_password  = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 6);
         $hashed_password = password_hash($plain_password, PASSWORD_DEFAULT);
@@ -106,7 +110,6 @@ try {
     /* ===================== PHOTO UPLOAD ===================== */
     $photo_name = null;
     if (!empty($_FILES['photo']['name'])) {
-
         if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception("Photo upload failed.");
         }
@@ -133,7 +136,7 @@ try {
             qualification, employment_date, password, photo,
             status, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             'active', NOW(), NOW()
         )
     ");
@@ -157,19 +160,16 @@ try {
         $photo_name
     ]);
 
-    /* ===================== SEND EMAIL ===================== */
+    /* ===================== EMAIL NOTIFICATION ===================== */
     $email_status = '';
 
     if ($staff_type === 'Teaching') {
-
-        $email_body =
-            "Dear {$first_name} {$surname},\n\n" .
+        $email_body = "Dear {$first_name} {$surname},\n\n" .
             "You have been successfully enrolled as Teaching Staff.\n\n" .
             "Login URL: https://ftcsms.fasttrack.edu.gh\n" .
             "Email: {$email}\n" .
             "Temporary Password: {$plain_password}\n\n" .
-            "Please change your password after login.\n\n" .
-            "FTCSMS Team";
+            "Please change your password after login.\n\nFTCSMS Team";
 
         try {
             $mail = new PHPMailer(true);
@@ -189,6 +189,7 @@ try {
             $mail->send();
             $email_status = 'Email sent successfully.';
         } catch (Exception $e) {
+            // Queue if sending fails
             $pdo->prepare("
                 INSERT INTO email_queue (recipient_email, recipient_name, subject, body)
                 VALUES (?, ?, ?, ?)
@@ -198,9 +199,8 @@ try {
         }
     }
 
-    /* ===================== SUCCESS ===================== */
-    $_SESSION['alert'] = '
-    <div class="alert alert-success alert-dismissible fade show">
+    /* ===================== SUCCESS MESSAGE ===================== */
+    $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show">
         Staff Enrolled Successfully!<br>
         Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>
         ' . $email_status . '
@@ -211,13 +211,11 @@ try {
     exit;
 
 } catch (Exception $e) {
-
-    $_SESSION['alert'] = '
-    <div class="alert alert-danger alert-dismissible fade show">
+    $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
         Error: ' . htmlspecialchars($e->getMessage()) . '
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
-
     header("Location: ../pages/enroll_teacher.php");
     exit;
 }
+?>
