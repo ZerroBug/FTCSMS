@@ -67,8 +67,7 @@ try {
     }
 
     /* ===================== DUPLICATE CHECK ===================== */
-
-    // 1️⃣ Check duplicate PHONE (all staff)
+    // Check phone (all staff)
     $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE phone = ?");
     $checkPhone->execute([$phone]);
     if ($checkPhone->fetchColumn() > 0) {
@@ -80,7 +79,7 @@ try {
         exit;
     }
 
-    // 2️⃣ Check duplicate EMAIL (Teaching staff only)
+    // Check email (Teaching staff only)
     if ($staff_type === 'Teaching' && !empty($email)) {
         $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE email = ?");
         $checkEmail->execute([$email]);
@@ -174,14 +173,14 @@ try {
         try {
             $mail = new PHPMailer(true);
             $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
+            $mail->Host       = 'mail.fasttrack.edu.gh';       // cPanel SMTP host
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'anane2020@gmail.com';
-            $mail->Password   = 'fila oulp kopw teyv';
+            $mail->Username   = 'noreply@fasttrack.edu.gh';   // official sender
+            $mail->Password   = 'fasttrackAPP@';        // email password
             $mail->SMTPSecure = 'tls';
-            $mail->Port       = 587;
+            $mail->Port       = 456;
 
-            $mail->setFrom('anane2020@gmail.com', 'FAST TRACK');
+            $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK');
             $mail->addAddress($email, $first_name . ' ' . $surname);
             $mail->Subject = 'Your Teaching Staff Login Details';
             $mail->Body    = $email_body;
@@ -189,7 +188,7 @@ try {
             $mail->send();
             $email_status = 'Email sent successfully.';
         } catch (Exception $e) {
-            // Queue if sending fails
+            // Queue fallback
             $pdo->prepare("
                 INSERT INTO email_queue (recipient_email, recipient_name, subject, body)
                 VALUES (?, ?, ?, ?)
