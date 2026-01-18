@@ -171,8 +171,8 @@ try {
         $mail->SMTPSecure = 'ssl';
         $mail->Port       = 465;
 
-        $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
-        $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
+        $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK');
+        $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK');
         $mail->addAddress($email, "{$first_name} {$surname}");
         $mail->isHTML(true);
         $mail->Subject = 'Your Teaching Staff Login Details';
@@ -204,10 +204,10 @@ try {
         <p><strong>Temporary Password:</strong> {$plain_password}</p>
         </div>
         <p>Please log in and change your password immediately to keep your account secure.</p>
-
-        <p>We welcome you to the FAST TRACK COLLEGE family and wish you a great experience!</p>
+        <p><a href='https://app.fasttrack.edu.gh' class='button'>Login Now</a></p>
+        <p>We welcome you to the FAST TRACK family and wish you a great experience!</p>
         </div>
-        <div class='footer'>&copy; " . date('Y') . " FAST TRACK COLLEGE. All rights reserved.</div>
+        <div class='footer'>&copy; " . date('Y') . " FAST TRACK CMS. All rights reserved.</div>
         </div>
         </body>
         </html>
@@ -218,7 +218,7 @@ try {
             "Login URL: https://app.fasttrack.edu.gh\n".
             "Email: {$email}\n".
             "Temporary Password: {$plain_password}\n\n".
-            "Please change your password immediately.\n\nFAST TRACK COLLEGE Team";
+            "Please change your password immediately.\n\nFAST TRACK CMS Team";
 
         try {
             $mail->send();
