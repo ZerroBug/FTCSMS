@@ -8,50 +8,43 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-/* ===================== COLLECT & SANITIZE ===================== */
-$loginInput = trim($_POST['email'] ?? ''); // can be email or phone
+/* ===================== COLLECT INPUT ===================== */
+$loginInput = trim($_POST['email'] ?? '');
 $password   = $_POST['password'] ?? '';
 
 if (empty($loginInput) || empty($password)) {
     $_SESSION['alert'] = '
-    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-    <i class="fas fa-times-circle me-2"></i>
-    Invalid email/phone or password. Please try again.
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-';
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+        Invalid email/phone or password.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>';
     header("Location: ../index.php");
     exit;
 }
 
-/* Optional: Normalize phone input (remove spaces, dashes, parentheses) */
-$loginInputNormalized = str_replace([' ', '-', '(', ')'], '', $loginInput);
+/* Normalize phone only */
+$phoneNormalized = preg_replace('/\D+/', '', $loginInput);
 
 /* ===================== FETCH TEACHER ===================== */
 $stmt = $pdo->prepare("
-    SELECT 
-        id,
-        staff_id,
-        first_name,
-        surname,
-        email,
-        phone,
-        password,
-        staff_type,
-        status,
-        photo
+    SELECT id, staff_id, first_name, surname, email, phone, password,
+           staff_type, status, photo
     FROM teachers
-    WHERE email = :input OR phone = :input
+    WHERE email = :email OR phone = :phone
     LIMIT 1
 ");
-$stmt->execute(['input' => $loginInputNormalized]);
+
+$stmt->execute([
+    'email' => $loginInput,
+    'phone' => $phoneNormalized
+]);
+
 $teacher = $stmt->fetch(PDO::FETCH_ASSOC);
 
 /* ===================== VALIDATION ===================== */
-if (!$teacher) {
+if (!$teacher || !password_verify($password, $teacher['password'])) {
     $_SESSION['alert'] = '
-    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-        <i class="fas fa-times-circle me-2"></i>
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm">
         Invalid email/phone or password.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
@@ -59,36 +52,22 @@ if (!$teacher) {
     exit;
 }
 
-/* Restrict to Teaching staff only */
+/* Teaching staff only */
 if ($teacher['staff_type'] !== 'Teaching') {
     $_SESSION['alert'] = '
-    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
-        <i class="fas fa-lock me-2"></i>
-        Access denied. This portal is for teaching staff only.
+    <div class="alert alert-warning alert-dismissible fade show shadow-sm">
+        Access denied. Teaching staff only.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
     header("Location: ../index.php");
     exit;
 }
 
-/* Account status check */
+/* Account status */
 if (strtolower($teacher['status']) !== 'active') {
     $_SESSION['alert'] = '
-    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
-        <i class="fas fa-user-slash me-2"></i>
-        Your account is inactive. Please contact the administrator.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>';
-    header("Location: ../index.php");
-    exit;
-}
-
-/* ===================== PASSWORD VERIFICATION ===================== */
-if (!password_verify($password, $teacher['password'])) {
-    $_SESSION['alert'] = '
-    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-        <i class="fas fa-times-circle me-2"></i>
-        Invalid email/phone or password.
+    <div class="alert alert-warning alert-dismissible fade show shadow-sm">
+        Your account is inactive. Contact admin.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
     header("Location: ../index.php");
@@ -104,7 +83,5 @@ $_SESSION['teacher_name']  = $teacher['first_name'] . ' ' . $teacher['surname'];
 $_SESSION['teacher_email'] = $teacher['email'];
 $_SESSION['teacher_photo'] = $teacher['photo'];
 
-/* ===================== REDIRECT ===================== */
 header("Location: ../pages/teachers_dashboard.php");
 exit;
-?>
