@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $religion = trim($_POST['religion'] ?? '');
         $last_school = trim($_POST['last_school'] ?? '');
         $last_school_position = trim($_POST['last_school_position'] ?? '');
-        $bece_scores = trim($_POST['bece_scores'] ?? '');
+        $bece_scores = $_POST['bece_scores'] ;
         $residential_status = trim($_POST['residential_status'] ?? '');
         $hall_of_residence = trim($_POST['hall_of_residence'] ?? '');
         $nhis_no = trim($_POST['nhis_no'] ?? '');
