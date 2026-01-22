@@ -2,60 +2,42 @@
 session_start();
 require_once __DIR__ . '/../includes/db_connection.php';
 
-/* ===================== ERROR REPORTING (TEMPORARY) ===================== */
+/* ===================== ERROR REPORTING ===================== */
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-/* ===================== PHPMailer ===================== */
-require_once __DIR__ . '/../includes/phpmailer/src/PHPMailer.php';
-require_once __DIR__ . '/../includes/phpmailer/src/SMTP.php';
-require_once __DIR__ . '/../includes/phpmailer/src/Exception.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
 /* ===================== SECURITY CHECK ===================== */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header("Location: ../pages/enroll_teacher.php");
+    header("Location: ../pages/enroll_student.php");
     exit;
 }
 
 try {
     /* ===================== COLLECT DATA ===================== */
-    $first_name      = trim($_POST['first_name'] ?? '');
-    $surname         = trim($_POST['surname'] ?? '');
-    $other_names     = trim($_POST['other_names'] ?? '');
-    $dob             = !empty($_POST['dob']) ? $_POST['dob'] : null;
-    $employment_date = !empty($_POST['employment_date']) ? $_POST['employment_date'] : null;
-    $gender          = $_POST['gender'] ?? '';
-    $staff_type      = $_POST['staff_type'] ?? '';
-    $email           = trim($_POST['email'] ?? '');
-    $phone           = preg_replace('/\D+/', '', trim($_POST['phone'] ?? '')); // normalize phone
-    $nationality     = trim($_POST['nationality'] ?? '');
-    $religion        = trim($_POST['religion'] ?? '');
-    $address         = trim($_POST['address'] ?? '');
-    $qualification   = trim($_POST['qualification'] ?? '');
-    $staff_id        = trim($_POST['staff_id'] ?? '');
+    $first_name   = trim($_POST['first_name'] ?? '');
+    $surname      = trim($_POST['surname'] ?? '');
+    $other_names  = trim($_POST['other_names'] ?? '');
+    $dob          = !empty($_POST['dob']) ? $_POST['dob'] : null; // safe date
+    $gender       = $_POST['gender'] ?? '';
+    $email        = trim($_POST['email'] ?? '');
+    $phone        = preg_replace('/\D+/', '', trim($_POST['phone'] ?? ''));
+    $address      = trim($_POST['address'] ?? '');
+    $nationality  = trim($_POST['nationality'] ?? '');
+    $student_id   = trim($_POST['student_id'] ?? '');
 
-    /* ===================== INTEGER FIELD EXAMPLE ===================== */
-    // Bece scores (safe integer handling)
-    $bece_scores     = isset($_POST['bece_scores']) && $_POST['bece_scores'] !== '' 
-                        ? (int)$_POST['bece_scores'] 
-                        : null; // NULL if empty
+    /* ===================== INTEGER FIELDS ===================== */
+    $bece_scores = isset($_POST['bece_scores']) && $_POST['bece_scores'] !== ''
+                    ? (int)$_POST['bece_scores']
+                    : 0; // default to 0 if empty
 
     /* ===================== REQUIRED FIELD VALIDATION ===================== */
     $required = [
         'First Name' => $first_name,
         'Surname'    => $surname,
         'Gender'     => $gender,
-        'Staff Type' => $staff_type,
         'Phone'      => $phone
     ];
-
-    if ($staff_type === 'Teaching' && empty($email)) {
-        $required['Email'] = $email;
-    }
 
     $missing = [];
     foreach ($required as $key => $value) {
@@ -67,128 +49,62 @@ try {
             Missing fields: <strong>' . implode(', ', $missing) . '</strong>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>';
-        header("Location: ../pages/enroll_teacher.php");
+        header("Location: ../pages/enroll_student.php");
         exit;
     }
 
     /* ===================== DUPLICATE CHECK ===================== */
-    $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE phone = ?");
+    $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM students WHERE phone = ?");
     $checkPhone->execute([$phone]);
     if ($checkPhone->fetchColumn() > 0) {
-        throw new Exception("A staff member with this phone number already exists.");
+        throw new Exception("A student with this phone number already exists.");
     }
 
-    if ($staff_type === 'Teaching' && !empty($email)) {
-        $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE email = ?");
+    if (!empty($email)) {
+        $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM students WHERE email = ?");
         $checkEmail->execute([$email]);
         if ($checkEmail->fetchColumn() > 0) {
-            throw new Exception("A staff member with this email already exists.");
+            throw new Exception("A student with this email already exists.");
         }
     }
 
-    /* ===================== AUTO-GENERATE STAFF ID ===================== */
-    if (empty($staff_id)) {
-        $staff_id = 'FTC/STF/' . rand(1000, 9999);
+    /* ===================== AUTO-GENERATE STUDENT ID ===================== */
+    if (empty($student_id)) {
+        $student_id = 'FTC/STD/' . rand(1000, 9999);
     }
 
-    /* ===================== PASSWORD GENERATION ===================== */
-    $plain_password  = null;
-    $hashed_password = null;
-    if ($staff_type === 'Teaching') {
-        $plain_password  = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 6);
-        $hashed_password = password_hash($plain_password, PASSWORD_DEFAULT);
-    }
-
-    /* ===================== PHOTO UPLOAD ===================== */
-    $photo_name = null;
-    if (!empty($_FILES['photo']['name'])) {
-        if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
-            throw new Exception("Photo upload failed.");
-        }
-
-        $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
-            throw new Exception("Only JPG and PNG files are allowed.");
-        }
-
-        $uploadDir = __DIR__ . '/../assets/uploads/staff/';
-        if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
-            throw new Exception("Upload directory not writable.");
-        }
-
-        $photo_name = uniqid('staff_') . '.' . $ext;
-        move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $photo_name);
-    }
-
-    /* ===================== INSERT STAFF ===================== */
+    /* ===================== INSERT STUDENT ===================== */
     $stmt = $pdo->prepare("
-        INSERT INTO teachers (
-            staff_id, first_name, surname, other_names, dob, gender,
-            staff_type, email, phone, nationality, religion, address,
-            qualification, employment_date, password, photo, bece_scores,
+        INSERT INTO students (
+            student_id, first_name, surname, other_names, dob, gender,
+            email, phone, address, nationality, bece_scores,
             status, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             'active', NOW(), NOW()
         )
     ");
 
     $stmt->execute([
-        $staff_id,
+        $student_id,
         $first_name,
         $surname,
         $other_names,
         $dob,
         $gender,
-        $staff_type,
-        $staff_type === 'Teaching' ? $email : null,
+        !empty($email) ? $email : null,
         $phone,
-        $nationality,
-        $religion,
         $address,
-        $qualification,
-        $employment_date,
-        $hashed_password,
-        $photo_name,
-        $bece_scores // safe integer or NULL
+        $nationality,
+        $bece_scores // safe integer (0 if empty)
     ]);
 
-    /* ===================== EMAIL NOTIFICATION ===================== */
-    $email_status = '';
-    if ($staff_type === 'Teaching') {
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = 'mail.fasttrack.edu.gh';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'noreply@fasttrack.edu.gh';
-        $mail->Password   = 'fasttrackAPP@';
-        $mail->SMTPSecure = 'ssl';
-        $mail->Port       = 465;
-
-        $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
-        $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
-        $mail->addAddress($email, "{$first_name} {$surname}");
-        $mail->isHTML(true);
-        $mail->Subject = 'Your Teaching Staff Login Details';
-
-        $mail->Body = "Dear {$first_name} {$surname},\nYour login: {$email}, Temp Password: {$plain_password}";
-        $mail->AltBody = $mail->Body;
-
-        try {
-            $mail->send();
-            $email_status = 'Email sent successfully.';
-        } catch (Exception $e) {
-            $email_status = 'Email failed: ' . $mail->ErrorInfo;
-        }
-    }
-
     $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show">
-        Staff enrolled successfully! Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>' .
-        $email_status .
-        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        Student enrolled successfully! Student ID: <strong>' . htmlspecialchars($student_id) . '</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
 
-    header("Location: ../pages/enroll_teacher.php");
+    header("Location: ../pages/enroll_student.php");
     exit;
 
 } catch (Exception $e) {
@@ -196,7 +112,7 @@ try {
         Error: ' . htmlspecialchars($e->getMessage()) . '
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
-    header("Location: ../pages/enroll_teacher.php");
+    header("Location: ../pages/enroll_student.php");
     exit;
 }
 ?>
