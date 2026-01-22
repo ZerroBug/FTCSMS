@@ -205,11 +205,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
                                             12, no duplicates).</small>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label class="form-label">BECE Scores</label>
-                                        <input type="number" name="bece_scores" class="form-control form-control-lg"
-                                            placeholder="e.g., 467">
-                                    </div>
+
 
                                     <div class="mb-3">
                                         <label class="form-label">NHIS Number</label>

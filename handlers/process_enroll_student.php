@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $religion = trim($_POST['religion'] ?? '');
         $last_school = trim($_POST['last_school'] ?? '');
         $last_school_position = trim($_POST['last_school_position'] ?? '');
-        $bece_scores = $_POST['bece_scores'] ;
+     
         $residential_status = trim($_POST['residential_status'] ?? '');
         $hall_of_residence = trim($_POST['hall_of_residence'] ?? '');
         $nhis_no = trim($_POST['nhis_no'] ?? '');
@@ -105,8 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("INSERT INTO students 
             (admission_number, year_of_admission, level, year_group, learning_area_id,
             first_name, middle_name, surname, hometown, student_contact, dob, gender, nationality, languages_spoken, religion,
-            last_school, last_school_position, bece_scores, residential_status, hall_of_residence, nhis_no, interests, photo, guardian_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            last_school, last_school_position, residential_status, hall_of_residence, nhis_no, interests, photo, guardian_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, NOW())");
 
         $stmt->execute([
             $admission_number, $current_year, $level, $year_group, $learning_area_id,
