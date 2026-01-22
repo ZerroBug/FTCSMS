@@ -79,7 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $photo_tmp = $_FILES['photo']['tmp_name'];
             $photo_ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
             $photo_name = uniqid('student_') . '.' . $photo_ext;
-            move_uploaded_file($photo_tmp, "../assets/uploads/students/" . $photo_name);
+           $uploadDir = __DIR__ . '/../assets/uploads/students/';
+            move_uploaded_file($photo_tmp, $uploadDir . $photo_name);
+
         }
 
         // ================== INSERT GUARDIAN ==================
