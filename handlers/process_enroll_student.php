@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([
             $admission_number, $current_year, $level, $year_group, $learning_area_id,
             $first_name, $middle_name, $surname, $hometown, $student_contact, $dob, $gender, $nationality,
-            $languages_spoken, $religion, $last_school, $last_school_position, $bece_scores, $residential_status,
+            $languages_spoken, $religion, $last_school, $last_school_position, $residential_status,
             $hall_of_residence, $nhis_no, $interests, $photo_name, $guardian_id
         ]);
 
