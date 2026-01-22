@@ -75,7 +75,8 @@ try {
     /* ===================== PHOTO UPLOAD ===================== */
     $photo_name = null;
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $upload_dir = __DIR__ . '/../assets/uploads/students/';
+       $upload_dir = '/home2/fasttra2/public_html/app.fasttrack.edu.gh/assets/uploads/students/';
+
         if (!is_dir($upload_dir) || !is_writable($upload_dir)) {
             throw new Exception("Upload folder does not exist or is not writable: $upload_dir");
         }
