@@ -38,6 +38,12 @@ try {
     $qualification   = trim($_POST['qualification'] ?? '');
     $staff_id        = trim($_POST['staff_id'] ?? '');
 
+    /* ===================== INTEGER FIELD EXAMPLE ===================== */
+    // Bece scores (safe integer handling)
+    $bece_scores     = isset($_POST['bece_scores']) && $_POST['bece_scores'] !== '' 
+                        ? (int)$_POST['bece_scores'] 
+                        : null; // NULL if empty
+
     /* ===================== REQUIRED FIELD VALIDATION ===================== */
     $required = [
         'First Name' => $first_name,
@@ -66,29 +72,17 @@ try {
     }
 
     /* ===================== DUPLICATE CHECK ===================== */
-    // Check phone (all staff)
     $checkPhone = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE phone = ?");
     $checkPhone->execute([$phone]);
     if ($checkPhone->fetchColumn() > 0) {
-        $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
-            A staff member with this <strong>phone number</strong> already exists.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>';
-        header("Location: ../pages/enroll_teacher.php");
-        exit;
+        throw new Exception("A staff member with this phone number already exists.");
     }
 
-    // Check email (Teaching staff only)
     if ($staff_type === 'Teaching' && !empty($email)) {
         $checkEmail = $pdo->prepare("SELECT COUNT(*) FROM teachers WHERE email = ?");
         $checkEmail->execute([$email]);
         if ($checkEmail->fetchColumn() > 0) {
-            $_SESSION['alert'] = '<div class="alert alert-danger alert-dismissible fade show">
-                A staff member with this <strong>email address</strong> already exists.
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>';
-            header("Location: ../pages/enroll_teacher.php");
-            exit;
+            throw new Exception("A staff member with this email already exists.");
         }
     }
 
@@ -131,10 +125,10 @@ try {
         INSERT INTO teachers (
             staff_id, first_name, surname, other_names, dob, gender,
             staff_type, email, phone, nationality, religion, address,
-            qualification, employment_date, password, photo,
+            qualification, employment_date, password, photo, bece_scores,
             status, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
             'active', NOW(), NOW()
         )
     ");
@@ -155,12 +149,12 @@ try {
         $qualification,
         $employment_date,
         $hashed_password,
-        $photo_name
+        $photo_name,
+        $bece_scores // safe integer or NULL
     ]);
 
     /* ===================== EMAIL NOTIFICATION ===================== */
     $email_status = '';
-
     if ($staff_type === 'Teaching') {
         $mail = new PHPMailer(true);
         $mail->isSMTP();
@@ -177,48 +171,8 @@ try {
         $mail->isHTML(true);
         $mail->Subject = 'Your Teaching Staff Login Details';
 
-        $mail->Body = "
-        <html>
-        <head>
-        <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        .header { text-align: center; padding-bottom: 20px; }
-        .header h2 { margin: 0; color: #004085; }
-        .content { font-size: 14px; }
-        .credentials { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 15px 0; }
-        .button { display: inline-block; padding: 10px 20px; color: #fff; background-color: #004085; text-decoration: none; border-radius: 5px; }
-        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 20px; }
-        </style>
-        </head>
-        <body>
-        <div class='container'>
-        <div class='header'><h2>FAST TRACK CMS</h2></div>
-        <div class='content'>
-        <p>Dear <strong>{$first_name} {$surname}</strong>,</p>
-        <p>Congratulations! You have been successfully enrolled as <strong>Teaching Staff</strong> at FAST TRACK COLLEGE.</p>
-        <p>Your login details are as follows:</p>
-        <div class='credentials'>
-        <p><strong>Login URL:</strong> <a href='https://app.fasttrack.edu.gh'>https://app.fasttrack.edu.gh</a></p>
-        <p><strong>Email:</strong> {$email}</p>
-        <p><strong>Temporary Password:</strong> {$plain_password}</p>
-        </div>
-        <p>Please log in and change your password immediately to keep your account secure.</p>
-        <p><a href='https://app.fasttrack.edu.gh' class='button'>Login Now</a></p>
-        <p>We welcome you to the FAST TRACK COLLEGE family and wish you a great experience!</p>
-        </div>
-        <div class='footer'>&copy; " . date('Y') . " FAST TRACK CMS. All rights reserved.</div>
-        </div>
-        </body>
-        </html>
-        ";
-
-        $mail->AltBody = "Dear {$first_name} {$surname},\n\n".
-            "You have been successfully enrolled as Teaching Staff at FAST TRACK COLLEGE.\n".
-            "Login URL: https://app.fasttrack.edu.gh\n".
-            "Email: {$email}\n".
-            "Temporary Password: {$plain_password}\n\n".
-            "Please change your password immediately.\n\nFAST TRACK CMS Team";
+        $mail->Body = "Dear {$first_name} {$surname},\nYour login: {$email}, Temp Password: {$plain_password}";
+        $mail->AltBody = $mail->Body;
 
         try {
             $mail->send();
@@ -228,12 +182,10 @@ try {
         }
     }
 
-    /* ===================== SUCCESS MESSAGE ===================== */
     $_SESSION['alert'] = '<div class="alert alert-success alert-dismissible fade show">
-        Staff Enrolled Successfully!<br>
-        Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>
-        ' . $email_status . '
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        Staff enrolled successfully! Staff ID: <strong>' . htmlspecialchars($staff_id) . '</strong><br>' .
+        $email_status .
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>';
 
     header("Location: ../pages/enroll_teacher.php");
