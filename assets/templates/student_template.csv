@@ -1,2 +1,2 @@
-level,first_name,surname,dob,gender,nationality,religion,residential_status,learning_area_id,student_contact,guardian_name,guardian_contact
-SHS-1,John,Doe,5/14/2008,Male,Ghanaian,Christianity,Day,1,244123456,Jane Doe,244987654
+level,year_group,first_name,surname,dob,gender,nationality,religion,residential_status,learning_area_id,student_contact,guardian_name,guardian_contact
+SHS-1,2025,John,Doe,5/14/2008,Male,Ghanaian,Christianity,Day,1,244123456,Jane Doe,244987654
