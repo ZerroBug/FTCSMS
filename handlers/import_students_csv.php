@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Insert student
             $stmt = $pdo->prepare("INSERT INTO students 
-                (admission_number, year_of_admission, level, first_name, surname, dob, gender, nationality, religion, residential_status, student_contact, guardian_id, created_at)
+                (admission_number, year_group, level, first_name, surname, dob, gender, nationality, religion, residential_status, student_contact, guardian_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
 
             $stmt->execute([
