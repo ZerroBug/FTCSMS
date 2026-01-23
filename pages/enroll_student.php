@@ -119,13 +119,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
                             <form action="../handlers/import_students_csv.php" method="POST"
                                 enctype="multipart/form-data"
                                 class="d-flex flex-column flex-md-row gap-2 align-items-center">
-                                <label class="file-badge flex-grow-1 text-truncate" id="csvFileName">No file
-                                    selected</label>
-                                <input type="file" name="csv_file" id="csv_file_input" accept=".csv"
-                                    class="form-control form-control-sm">
-                                <button type="submit" class="btn btn-success-sm"><i class="fas fa-upload"></i>
-                                    Import</button>
-                            </form>
+
                         </div>
 
                         <form action="../handlers/process_enroll_student.php" method="POST"
@@ -472,6 +466,56 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         });
     });
     </script>
+    <!-- ================= CSV HELP MODAL ================= -->
+    <div class="modal fade" id="csvHelpModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-csv me-2 text-primary"></i>
+                        Student CSV Import Guide
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="fw-semibold mb-2">How to import students using CSV:</p>
+
+                    <ol class="mb-3">
+                        <li>Click <strong>Download CSV Template</strong></li>
+                        <li>Open the file using Excel, Google Sheets, or LibreOffice</li>
+                        <li>Fill in the student details carefully</li>
+                        <li>Do not change the column headers</li>
+                        <li>Save the file as <strong>CSV (Comma delimited)</strong></li>
+                        <li>Upload and click <strong>Import</strong></li>
+                    </ol>
+
+                    <hr>
+
+                    <p class="fw-semibold mb-2">Important Rules:</p>
+                    <ul>
+                        <li>✔ Date format: <code>YYYY-MM-DD</code></li>
+                        <li>✔ Gender must be <strong>Male</strong> or <strong>Female</strong></li>
+                        <li>✔ Residential status: <strong>Boarding</strong> or <strong>Day</strong></li>
+                        <li>✔ Subjects must match existing subjects in the system</li>
+                        <li>❌ Do not leave required columns empty</li>
+                    </ul>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-triangle-exclamation me-2"></i>
+                        If the import fails, check spelling, empty fields, and date formats.
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 </body>
 
