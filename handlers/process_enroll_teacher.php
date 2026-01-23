@@ -93,7 +93,7 @@ if (!empty($_FILES['photo']['name'])) {
     }
 
     $photo = time() . '_' . basename($_FILES['photo']['name']);
-    $upload_path = "../assets/uploads/teachers/$photo";
+    $upload_path = "../assets/uploads/staff/$photo";
 
     if (!move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
         $_SESSION['alert'] = "<div class='alert alert-danger'>Photo upload failed.</div>";
