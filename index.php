@@ -465,6 +465,31 @@ session_start();
         position: relative;
         z-index: 1;
     }
+
+    /* ---------------- FOOTER ---------------- */
+    .footer {
+        position: fixed;
+        bottom: 10px;
+        width: 100%;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--text-muted);
+        z-index: 2;
+    }
+
+    .footer span {
+        font-weight: 500;
+    }
+
+    .footer a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .footer a:hover {
+        text-decoration: underline;
+    }
     </style>
 
 </head>
@@ -657,6 +682,12 @@ session_start();
         });
     });
     </script>
+    <footer class="footer">
+        <span>
+            © <?php echo date('Y'); ?> FTCSMS. Powered by
+            <a href="https://anatechconsult.com" target="_blank">Anatech Consult</a>
+        </span>
+    </footer>
 
 </body>
 
