@@ -273,7 +273,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
                     <div class="form-card">
 
                         <div class="header-box-actions">
-                            <a href="../assets/csv/student_template.csv" class="btn btn-primary btn-sm">
+                            <a href="../assets/templates/student_template.csv" class="btn btn-primary btn-sm">
                                 <i class="fas fa-download"></i> Download CSV Template
                             </a>
 
