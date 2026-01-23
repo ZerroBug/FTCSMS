@@ -94,7 +94,7 @@ if (!empty($_FILES['photo']['name'])) {
         exit;
     }
 
-    $upload_dir = "../assets/uploads/teachers/";
+    $upload_dir = "../assets/uploads/staff/";
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0755, true);
     }
