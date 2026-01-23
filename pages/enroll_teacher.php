@@ -167,11 +167,7 @@ $user_photo = $_SESSION['user_photo'];
                                     <input type="text" name="qualification" class="form-control form-control-lg">
                                 </div>
 
-                                <div class="col-md-6">
-                                    <label class="form-label">Staff ID</label>
-                                    <input type="text" name="staff_id" class="form-control form-control-lg"
-                                        placeholder="Auto-generated or manual">
-                                </div>
+
 
                                 <div class="col-md-6">
                                     <label class="form-label">Employment Date</label>
