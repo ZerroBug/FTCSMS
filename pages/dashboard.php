@@ -166,29 +166,20 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         }
     }
 
-    /* ---------------- FOOTER ---------------- */
+    /* ---------------- DASHBOARD FOOTER ---------------- */
     .footer {
-        position: fixed;
-        bottom: 10px;
-        width: 100%;
+        background: #ffffff;
+        border-top: 1px solid #e5e7eb;
+        padding: 14px 20px;
         text-align: center;
-        font-size: 12.5px;
-        color: var(--text-muted);
-        z-index: 2;
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 40px;
     }
 
     .footer span {
         font-weight: 500;
-    }
-
-    .footer a {
-        color: var(--primary);
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .footer a:hover {
-        text-decoration: underline;
+        color: #412461;
     }
     </style>
 </head>
