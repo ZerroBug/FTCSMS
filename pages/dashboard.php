@@ -165,6 +165,31 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
             right: 15px;
         }
     }
+
+    /* ---------------- FOOTER ---------------- */
+    .footer {
+        position: fixed;
+        bottom: 10px;
+        width: 100%;
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--text-muted);
+        z-index: 2;
+    }
+
+    .footer span {
+        font-weight: 500;
+    }
+
+    .footer a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .footer a:hover {
+        text-decoration: underline;
+    }
     </style>
 </head>
 
@@ -232,10 +257,13 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
             </div>
         </div>
     </main>
-
-    <footer>
-        &copy; <?= date('Y'); ?> FTCSMS • All Rights Reserved. <span>Powered by Anatech Consult</span>
+    <footer class="footer">
+        <span>
+            © <?php echo date('Y'); ?> Fast Track College. All rights reserved.
+            Powered by Anatech Consult
+        </span>
     </footer>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>

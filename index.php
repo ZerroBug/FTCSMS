@@ -684,10 +684,11 @@ session_start();
     </script>
     <footer class="footer">
         <span>
-            © <?php echo date('Y'); ?> FTCSMS. Powered by
-            <a href="https://anatechconsult.com" target="_blank">Anatech Consult</a>
+            © <?php echo date('Y'); ?> Fast Track College. All rights reserved.
+            Powered by Anatech Consult
         </span>
     </footer>
+
 
 </body>
 
