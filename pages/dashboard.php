@@ -11,6 +11,8 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION[
 }
 
 $user_name = $_SESSION['user_name'];
+$user_email = $_SESSION['user_email'];
+$user_photo = $_SESSION['user_photo'];
 
 /* ===================== METRICS ===================== */
 
