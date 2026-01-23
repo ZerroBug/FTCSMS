@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rowCount = 0;
     $successCount = 0;
     $errors = [];
+    $duplicates = [];
 
     while (($data = fgetcsv($handle)) !== false) {
         $rowCount++;
@@ -45,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
-        // Convert DOB to MySQL date format (YYYY-MM-DD)
+        // Convert DOB to MySQL date format
         $dobObj = DateTime::createFromFormat('m/d/Y', $dob) ?: DateTime::createFromFormat('Y-m-d', $dob);
         if (!$dobObj) {
             $errors[] = "Row {$rowCount}: Invalid date format for DOB.";
@@ -54,20 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dob = $dobObj->format('Y-m-d');
 
         try {
-            // Check for duplicate student (same first_name + surname + dob)
+            // Check for duplicate student
             $stmt = $pdo->prepare("SELECT id FROM students WHERE first_name = ? AND surname = ? AND dob = ?");
             $stmt->execute([$first_name, $surname, $dob]);
             if ($stmt->fetch()) {
-                $errors[] = "Row {$rowCount}: Duplicate student found.";
+                $duplicates[] = "{$first_name} {$surname} (DOB: {$dob})";
                 continue;
             }
 
-            // Insert guardian first
+            // Insert guardian
             $stmt = $pdo->prepare("INSERT INTO guardians (name, contact, created_at) VALUES (?, ?, NOW())");
             $stmt->execute([$guardian_name, $guardian_contact]);
             $guardian_id = $pdo->lastInsertId();
 
-            // Generate admission number using year group
+            // Generate admission number
             $stmt = $pdo->prepare("SELECT admission_number FROM students WHERE year_group = ? ORDER BY id DESC LIMIT 1");
             $stmt->execute([$year_group]);
             $last_student = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -109,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     fclose($handle);
 
+    // Build messages
     $msg = "<div class='alert alert-success alert-dismissible fade show' role='alert'>
         {$successCount} student(s) imported successfully.
         <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
@@ -121,9 +123,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>";
     }
 
+    if ($duplicates) {
+        $msg .= "<div class='alert alert-warning alert-dismissible fade show' role='alert'>
+            <strong>Duplicates skipped:</strong>
+            <ul><li>" . implode('</li><li>', $duplicates) . "</li></ul>
+            <button type='button' class='btn-close' data-bs-dismiss='alert' aria-label='Close'></button>
+        </div>";
+    }
+
     $_SESSION['alert'] = $msg;
     header("Location: ../pages/enroll_student.php");
     exit;
+
 } else {
     header("Location: ../pages/enroll_student.php");
     exit;
