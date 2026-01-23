@@ -49,14 +49,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
+        // Convert DOB to YYYY-MM-DD format
+        $dobDate = DateTime::createFromFormat('m/d/Y', $dob) ?: DateTime::createFromFormat('Y-m-d', $dob);
+        if ($dobDate) {
+            $dob = $dobDate->format('Y-m-d');
+        } else {
+            $errors[] = "Row {$rowCount}: Invalid date format for DOB ({$dob}). Use MM/DD/YYYY or YYYY-MM-DD.";
+            continue;
+        }
+
         try {
             // Insert guardian first
             $stmt = $pdo->prepare("INSERT INTO guardians (name, contact, created_at) VALUES (?, ?, NOW())");
             $stmt->execute([$guardian_name, $guardian_contact]);
             $guardian_id = $pdo->lastInsertId();
 
-            // Generate admission number using year group from CSV
-            $stmt = $pdo->prepare("SELECT admission_number FROM students WHERE year_of_admission = ? ORDER BY id DESC LIMIT 1");
+            // Generate admission number using year group
+            $stmt = $pdo->prepare("SELECT admission_number FROM students WHERE year_group = ? ORDER BY id DESC LIMIT 1");
             $stmt->execute([$year_group]);
             $last_student = $stmt->fetch(PDO::FETCH_ASSOC);
             $next_number = 1;
