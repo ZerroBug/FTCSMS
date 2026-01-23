@@ -46,6 +46,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
     <link href="../assets/css/styles.css" rel="stylesheet">
 
     <style>
+    /* Form Selects & Subject Select */
     .subject-select,
     .form-select {
         border-radius: 10px;
@@ -62,6 +63,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         box-shadow: 0 0 0 3px rgba(65, 36, 97, 0.20);
     }
 
+    /* Add Subject Button */
     .add-subject-btn {
         cursor: pointer;
         color: #fff;
@@ -76,6 +78,7 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         background: #331b4d;
     }
 
+    /* Small Buttons */
     .btn-sm {
         border-radius: 8px;
         padding: 6px 12px;
@@ -92,7 +95,100 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         background-color: #267ba0 !important;
         border-color: #267ba0 !important;
     }
+
+    /* Header Card Styling */
+    .header-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        padding: 25px 30px;
+        margin-bottom: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Title + Icon */
+    .header-card .title-section {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-card .title-section .icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f7f3ff, #fff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(65, 36, 97, 0.06);
+    }
+
+    .header-card .title-section .title-text h4 {
+        font-size: 1.6rem;
+        margin-bottom: 4px;
+        font-weight: 600;
+        color: #412461;
+    }
+
+    .header-card .title-section .title-text .subtitle {
+        font-size: 0.95rem;
+        color: #6c6c6c;
+    }
+
+    /* CSV Buttons + Help + Import */
+    .header-card .action-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .header-card .action-group a,
+    .header-card .action-group button,
+    .header-card .action-group .csv-form button {
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        transition: 0.2s;
+    }
+
+    .header-card .action-group .csv-form {
+        display: flex;
+        flex: 1;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .header-card .action-group .csv-form label {
+        flex: 1;
+        min-width: 150px;
+        font-size: 0.85rem;
+        background: #f4f2fa;
+        border-radius: 8px;
+        padding: 7px 10px;
+        border: 1px solid #d4c7df;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .header-card .action-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .header-card .action-group .csv-form {
+            flex-direction: column;
+        }
+    }
     </style>
+
 </head>
 
 <body>
