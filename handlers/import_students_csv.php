@@ -10,7 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $file = $_FILES['csv_file']['tmp_name'];
-
     $handle = fopen($file, 'r');
     if (!$handle) {
         $_SESSION['alert'] = '<div class="alert alert-danger">Unable to read CSV file.</div>';
@@ -18,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Read header row
     $header = fgetcsv($handle);
     $rowCount = 0;
     $successCount = 0;
@@ -26,8 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     while (($data = fgetcsv($handle)) !== false) {
         $rowCount++;
-
-        // Map CSV columns
         $csvData = array_combine($header, $data);
 
         $level = trim($csvData['level'] ?? '');
@@ -49,16 +45,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
-        // Convert DOB to YYYY-MM-DD format
-        $dobDate = DateTime::createFromFormat('m/d/Y', $dob) ?: DateTime::createFromFormat('Y-m-d', $dob);
-        if ($dobDate) {
-            $dob = $dobDate->format('Y-m-d');
-        } else {
-            $errors[] = "Row {$rowCount}: Invalid date format for DOB ({$dob}). Use MM/DD/YYYY or YYYY-MM-DD.";
+        // Convert DOB to MySQL date format (YYYY-MM-DD)
+        $dobObj = DateTime::createFromFormat('m/d/Y', $dob) ?: DateTime::createFromFormat('Y-m-d', $dob);
+        if (!$dobObj) {
+            $errors[] = "Row {$rowCount}: Invalid date format for DOB.";
             continue;
         }
+        $dob = $dobObj->format('Y-m-d');
 
         try {
+            // Check for duplicate student (same first_name + surname + dob)
+            $stmt = $pdo->prepare("SELECT id FROM students WHERE first_name = ? AND surname = ? AND dob = ?");
+            $stmt->execute([$first_name, $surname, $dob]);
+            if ($stmt->fetch()) {
+                $errors[] = "Row {$rowCount}: Duplicate student found.";
+                continue;
+            }
+
             // Insert guardian first
             $stmt = $pdo->prepare("INSERT INTO guardians (name, contact, created_at) VALUES (?, ?, NOW())");
             $stmt->execute([$guardian_name, $guardian_contact]);
