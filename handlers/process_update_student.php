@@ -2,6 +2,9 @@
 session_start();
 require_once '../includes/db_connection.php';
 
+/* ================= PDO ERROR MODE ================= */
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 /* ================= SECURITY ================= */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     $_SESSION['alert'] = "<div class='alert alert-danger'>Invalid request.</div>";
@@ -13,54 +16,63 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id = $_POST['id'] ?? null;
 $guardian_id = $_POST['guardian_id'] ?? null;
 
-if (!$id) {
+if (empty($id) || !is_numeric($id)) {
     $_SESSION['alert'] = "<div class='alert alert-danger'>Missing student ID.</div>";
     header("Location: ../pages/manage_students.php");
     exit;
 }
 
 /* ================= STUDENT DATA ================= */
-$first_name         = trim($_POST['first_name']);
-$surname            = trim($_POST['surname']);
-$middle_name        = trim($_POST['middle_name'] ?? '');
-$dob                = $_POST['dob'];
-$gender             = $_POST['gender'];
-$nationality        = trim($_POST['nationality'] ?? '');
-$religion           = trim($_POST['religion'] ?? '');
-$languages_spoken   = trim($_POST['languages_spoken'] ?? '');
-$hometown           = trim($_POST['hometown'] ?? '');
-$student_contact    = trim($_POST['student_contact'] ?? '');
-$learning_area_id   = $_POST['learning_area_id'];
-$year_group         = trim($_POST['year_group']);
-$residential_status = trim($_POST['residential_status'] ?? '');
-$hall_of_residence  = trim($_POST['hall_of_residence'] ?? '');
-$bece_scores        = $_POST['bece_scores'] ?? null;
-$last_school        = trim($_POST['last_school'] ?? '');
-$last_school_position = trim($_POST['last_school_position'] ?? '');
+$first_name   = trim($_POST['first_name']);
+$surname      = trim($_POST['surname']);
+$middle_name  = trim($_POST['middle_name'] ?? null);
+$dob          = !empty($_POST['dob']) ? $_POST['dob'] : null;
+$gender       = $_POST['gender'] ?? null;
+$nationality  = trim($_POST['nationality'] ?? null);
+$religion     = trim($_POST['religion'] ?? null);
+$languages_spoken = trim($_POST['languages_spoken'] ?? null);
+$hometown     = trim($_POST['hometown'] ?? null);
+$student_contact = trim($_POST['student_contact'] ?? null);
+
+$learning_area_id = is_numeric($_POST['learning_area_id'] ?? null)
+    ? $_POST['learning_area_id']
+    : null;
+
+$year_group = trim($_POST['year_group'] ?? null);
+$residential_status = trim($_POST['residential_status'] ?? null);
+$hall_of_residence  = trim($_POST['hall_of_residence'] ?? null);
+
+$last_school = trim($_POST['last_school'] ?? null);
+$last_school_position = trim($_POST['last_school_position'] ?? null);
 
 /* ================= GUARDIAN ================= */
-$guardian_name        = trim($_POST['guardian_name']);
-$guardian_contact     = trim($_POST['guardian_contact']);
-$guardian_relationship = trim($_POST['guardian_relationship'] ?? '');
-$guardian_occupation  = trim($_POST['guardian_occupation'] ?? '');
+$guardian_name = trim($_POST['guardian_name'] ?? null);
+$guardian_contact = trim($_POST['guardian_contact'] ?? null);
+$guardian_relationship = trim($_POST['guardian_relationship'] ?? null);
+$guardian_occupation = trim($_POST['guardian_occupation'] ?? null);
 
 /* ================= PHOTO UPLOAD ================= */
 $photo_sql = "";
 $photo_param = [];
 
 if (!empty($_FILES['photo']['name'])) {
+
     $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
     $allowed = ['jpg', 'jpeg', 'png'];
 
-    if (in_array($ext, $allowed)) {
-        $photo_name = time() . '_' . basename($_FILES['photo']['name']);
-        move_uploaded_file(
-            $_FILES['photo']['tmp_name'],
-            "../assets/uploads/students/$photo_name"
-        );
-        $photo_sql = ", photo = ?";
-        $photo_param[] = $photo_name;
+    if (!in_array($ext, $allowed)) {
+        throw new Exception("Invalid photo format.");
     }
+
+    $photo_name = time() . '_' . basename($_FILES['photo']['name']);
+    $upload_path = "../assets/uploads/students/$photo_name";
+
+    if (!move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
+        throw new Exception("Photo upload failed.");
+    }
+
+    $photo_sql = ", photo = ?";
+    $photo_param[] = $photo_name;
 }
 
 /* ================= START TRANSACTION ================= */
@@ -85,7 +97,6 @@ try {
             year_group = ?,
             residential_status = ?,
             hall_of_residence = ?,
-            bece_scores = ?,
             last_school = ?,
             last_school_position = ?
             $photo_sql
@@ -107,7 +118,6 @@ try {
         $year_group,
         $residential_status,
         $hall_of_residence,
-        $bece_scores,
         $last_school,
         $last_school_position
     ];
@@ -122,7 +132,8 @@ try {
     $stmt->execute($params);
 
     /* ================= UPDATE GUARDIAN ================= */
-    if ($guardian_id) {
+    if (!empty($guardian_id) && is_numeric($guardian_id)) {
+
         $stmt = $pdo->prepare("
             UPDATE guardians SET
                 name = ?,
@@ -131,6 +142,7 @@ try {
                 occupation = ?
             WHERE id = ?
         ");
+
         $stmt->execute([
             $guardian_name,
             $guardian_contact,
@@ -142,15 +154,11 @@ try {
 
     /* ================= SUBJECT ASSIGNMENTS ================= */
     $subjects = $_POST['subjects'] ?? [];
+    $subjects = array_unique(array_filter($subjects, 'is_numeric'));
 
-    // clean subjects
-    $subjects = array_unique(array_filter($subjects));
-
-    // delete old
     $stmt = $pdo->prepare("DELETE FROM student_subjects WHERE student_id = ?");
     $stmt->execute([$id]);
 
-    // insert new
     if (!empty($subjects)) {
         $stmt = $pdo->prepare("
             INSERT INTO student_subjects (student_id, subject_id)
@@ -180,7 +188,7 @@ try {
 
     $_SESSION['alert'] = "
     <div class='alert alert-danger'>
-        Update failed. Please try again.
+        Update failed: {$e->getMessage()}
     </div>";
 
     header("Location: ../pages/update_student.php?id=$id");
