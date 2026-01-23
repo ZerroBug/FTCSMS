@@ -1,13 +1,16 @@
 <?php
 session_start();
-include '../includes/db_connection.php';
+require '../includes/db_connection.php';
+
+/* ================= PDO STRICT MODE ================= */
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: ../pages/manage_teachers.php");
-    exit();
+    exit;
 }
 
-// Required fields
+/* ================= REQUIRED FIELDS ================= */
 $required = ['id', 'first_name', 'surname', 'gender', 'teacher_type', 'phone'];
 foreach ($required as $field) {
     if (empty($_POST[$field])) {
@@ -17,27 +20,34 @@ foreach ($required as $field) {
             <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
         </div>";
         header("Location: ../pages/manage_teachers.php");
-        exit();
+        exit;
     }
 }
 
-// Sanitize inputs
-$id              = (int) $_POST['id'];
-$first_name      = trim($_POST['first_name']);
-$surname         = trim($_POST['surname']);
-$other_names     = trim($_POST['other_names'] ?? '');
-$dob             = $_POST['dob'] ?? null;
-$gender          = $_POST['gender'];
-$teacher_type    = $_POST['teacher_type'];
-$email           = trim($_POST['email'] ?? '');
-$phone           = trim($_POST['phone']);
-$nationality     = trim($_POST['nationality'] ?? '');
-$religion        = trim($_POST['religion'] ?? '');
-$address         = trim($_POST['address'] ?? '');
-$qualification   = trim($_POST['qualification'] ?? '');
-$employment_date = $_POST['employment_date'] ?? null;
+/* ================= SANITIZE INPUT ================= */
+$id          = (int) $_POST['id'];
+$first_name  = trim($_POST['first_name']);
+$surname     = trim($_POST['surname']);
+$other_names = trim($_POST['other_names'] ?? null);
 
-// Fetch existing teacher
+$dob = !empty($_POST['dob']) ? $_POST['dob'] : null;
+$employment_date = !empty($_POST['employment_date']) ? $_POST['employment_date'] : null;
+
+$gender     = $_POST['gender'];
+$staff_type = $_POST['teacher_type']; // form name, DB column is staff_type
+$phone      = trim($_POST['phone']);
+
+$email = trim($_POST['email'] ?? null);
+if ($staff_type !== 'Teaching') {
+    $email = null; // enforce DB rule
+}
+
+$nationality   = trim($_POST['nationality'] ?? null);
+$religion      = trim($_POST['religion'] ?? null);
+$address       = trim($_POST['address'] ?? null);
+$qualification = trim($_POST['qualification'] ?? null);
+
+/* ================= FETCH CURRENT ================= */
 $stmt = $pdo->prepare("SELECT photo FROM teachers WHERE id = ?");
 $stmt->execute([$id]);
 $current = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -49,13 +59,17 @@ if (!$current) {
         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
     </div>";
     header("Location: ../pages/manage_teachers.php");
-    exit();
+    exit;
 }
 
-$photo_name = $current['photo']; // keep old photo by default
+$photo_name = $current['photo'];
 
-// ================= PHOTO UPLOAD =================
+/* ================= PHOTO UPLOAD ================= */
 if (!empty($_FILES['photo']['name'])) {
+
+    if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+        throw new Exception("Photo upload failed.");
+    }
 
     $allowed = ['jpg', 'jpeg', 'png', 'webp'];
     $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
@@ -67,7 +81,7 @@ if (!empty($_FILES['photo']['name'])) {
             <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
         </div>";
         header("Location: ../pages/update_teacher.php?id=$id");
-        exit();
+        exit;
     }
 
     if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
@@ -77,49 +91,41 @@ if (!empty($_FILES['photo']['name'])) {
             <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
         </div>";
         header("Location: ../pages/update_teacher.php?id=$id");
-        exit();
+        exit;
     }
 
-    $upload_dir = "../assets/uploads/staff/";
+    $upload_dir = "../assets/uploads/teachers/";
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0755, true);
     }
 
-    $photo_name = uniqid('staff_', true) . '.' . $ext;
-    $target = $upload_dir . $photo_name;
+    $photo_name = uniqid('teacher_', true) . '.' . $ext;
 
-    if (!move_uploaded_file($_FILES['photo']['tmp_name'], $target)) {
-        $_SESSION['alert'] = "
-        <div class='alert alert-danger alert-dismissible fade show'>
-            Failed to upload photo.
-            <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-        </div>";
-        header("Location: ../pages/update_teacher.php?id=$id");
-        exit();
+    if (!move_uploaded_file($_FILES['photo']['tmp_name'], $upload_dir . $photo_name)) {
+        throw new Exception("Failed to upload photo.");
     }
 
-    // Delete old photo
     if (!empty($current['photo']) && file_exists($upload_dir . $current['photo'])) {
         unlink($upload_dir . $current['photo']);
     }
 }
 
-// ================= UPDATE QUERY =================
+/* ================= UPDATE ================= */
 $stmt = $pdo->prepare("
     UPDATE teachers SET
-        first_name = ?, 
-        surname = ?, 
-        other_names = ?, 
-        dob = ?, 
-        gender = ?, 
-        staff_type = ?, 
-        email = ?, 
-        phone = ?, 
-        nationality = ?, 
-        religion = ?, 
-        address = ?, 
-        qualification = ?, 
-        employment_date = ?, 
+        first_name = ?,
+        surname = ?,
+        other_names = ?,
+        dob = ?,
+        gender = ?,
+        staff_type = ?,
+        email = ?,
+        phone = ?,
+        nationality = ?,
+        religion = ?,
+        address = ?,
+        qualification = ?,
+        employment_date = ?,
         photo = ?
     WHERE id = ?
 ");
@@ -130,7 +136,7 @@ $stmt->execute([
     $other_names,
     $dob,
     $gender,
-    $teacher_type,
+    $staff_type,
     $email,
     $phone,
     $nationality,
@@ -149,4 +155,4 @@ $_SESSION['alert'] = "
 </div>";
 
 header("Location: ../pages/update_teacher.php?id=$id");
-exit();
+exit;
