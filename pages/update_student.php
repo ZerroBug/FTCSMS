@@ -237,11 +237,7 @@ $studentSubjects = $studentSubjectsStmt->fetchAll(PDO::FETCH_COLUMN);
                             value="<?= htmlspecialchars($std['hall_of_residence']); ?>">
                     </div>
 
-                    <div class="col-md-6">
-                        <label>BECE Scores</label>
-                        <input type="number" name="bece_scores" class="form-control"
-                            value="<?= $std['bece_scores']; ?>">
-                    </div>
+
 
                     <div class="col-md-6">
                         <label>Last School</label>

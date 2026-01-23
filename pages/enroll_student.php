@@ -279,11 +279,11 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
 
 
 
-                                    <div class="mb-3 mt-3">
+                                    <!-- <div class="mb-3 mt-3">
                                         <label class="form-label">Admission Number</label>
                                         <input type="text" name="admission_number" readonly
                                             class="form-control form-control-lg" placeholder="Auto-generated">
-                                    </div>
+                                    </div> -->
 
                                     <div class="mb-3">
                                         <label class="form-label">Last School Attended</label>
