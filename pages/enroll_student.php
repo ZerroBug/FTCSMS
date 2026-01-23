@@ -86,16 +86,6 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         transition: 0.2s;
     }
 
-    .btn-primary:hover {
-        background-color: #331b4d !important;
-        border-color: #331b4d !important;
-    }
-
-    .btn-info:hover {
-        background-color: #267ba0 !important;
-        border-color: #267ba0 !important;
-    }
-
     /* Header Card Styling */
     .header-card {
         background: #fff;
@@ -176,6 +166,71 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
         text-overflow: ellipsis;
     }
 
+    /* Top Action Buttons Container */
+    .header-box-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .header-box-actions .btn {
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.25s ease-in-out;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Hover effects for top buttons */
+    .header-box-actions .btn-primary {
+        background-color: #412461;
+        color: #fff;
+        border: none;
+    }
+
+    .header-box-actions .btn-primary:hover {
+        background-color: #331b4d;
+    }
+
+    .header-box-actions .btn-info {
+        background-color: #267ba0;
+        color: #fff;
+        border: none;
+    }
+
+    .header-box-actions .btn-info:hover {
+        background-color: #1d5f7f;
+    }
+
+    .header-box-actions .btn-success {
+        background-color: #28a745;
+        color: #fff;
+        border: none;
+    }
+
+    .header-box-actions .btn-success:hover {
+        background-color: #218838;
+    }
+
+    /* File label */
+    .header-box-actions .file-badge {
+        display: inline-block;
+        background: #f4f2fa;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid #d4c7df;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-grow: 1;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .header-card .action-group {
@@ -217,41 +272,27 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
                 <div class="col-12">
                     <div class="form-card">
 
-                        <div class="header-box mb-4 d-flex justify-content-between align-items-center">
-                            <div class="d-flex align-items-center">
-                                <div
-                                    style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#f7f3ff,#fff);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(65,36,97,0.06);">
-                                    <i class="fas fa-user-plus" style="color:var(--primary-dark); font-size:18px;"></i>
-                                </div>
-                                <div class="ms-3">
-                                    <h4 class="title-h mb-0">Add New Student</h4>
-                                    <div class="subtitle">Create a single student or import many via CSV</div>
-                                </div>
-                            </div>
+                        <div class="header-box-actions">
+                            <a href="../assets/csv/student_template.csv" class="btn btn-primary btn-sm">
+                                <i class="fas fa-download"></i> Download CSV Template
+                            </a>
 
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                <a href="../assets/csv/student_template.csv" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-download"></i> Download CSV Template
-                                </a>
-
-                                <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#helpModal">
-                                    <i class="fas fa-question-circle"></i> Help
-                                </button>
-                            </div>
+                            <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#helpModal">
+                                <i class="fas fa-question-circle"></i> Help
+                            </button>
 
                             <form action="../handlers/import_students_csv.php" method="POST"
-                                enctype="multipart/form-data"
-                                class="d-flex flex-column flex-md-row gap-2 align-items-center">
-                                <label class="file-badge flex-grow-1 text-truncate" id="csvFileName">No file
-                                    selected</label>
+                                enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                <label class="file-badge text-truncate" id="csvFileName">No file selected</label>
                                 <input type="file" name="csv_file" id="csv_file_input" accept=".csv"
                                     class="form-control form-control-sm">
-                                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-upload"></i>
-                                    Import</button>
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-upload"></i> Import
+                                </button>
                             </form>
-
                         </div>
+
 
                         <form action="../handlers/process_enroll_student.php" method="POST"
                             enctype="multipart/form-data" novalidate>
