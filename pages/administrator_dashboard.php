@@ -1,13 +1,11 @@
 <?php
 session_start();
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/../includes/db_connection.php';
+require '../includes/db_connection.php';
 
-/* ===================== AUTH CHECK ===================== */
 if (
     !isset($_SESSION['user_id']) ||
     !isset($_SESSION['user_role']) ||
@@ -19,22 +17,15 @@ if (
     exit;
 }
 
-/* ===================== USER DATA ===================== */
-$user_name  = $_SESSION['user_name'] ?? 'Administrator';
-$user_email = $_SESSION['user_email'] ?? '';
-$user_photo = $_SESSION['user_photo'] ?? 'default.png';
+$user_name  = $_SESSION['user_name'];
+$user_email = $_SESSION['user_email'];
+$user_photo = $_SESSION['user_photo'];
 
-/* ===================== METRICS ===================== */
-$totalStudents = (int)$pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-$totalMales    = (int)$pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'")->fetchColumn();
-$totalFemales  = (int)$pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
-$totalTeachers = (int)$pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
-
-/* ===================== CHART DATA ===================== */
-$labels  = ['Males', 'Females'];
-$males   = [$totalMales];
-$females = [$totalFemales];
-$totals  = [$totalMales, $totalFemales];
+/* ===================== METRICS (NO CLASSES) ===================== */
+$totalStudents = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
+$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Male'")->fetchColumn();
+$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Female'")->fetchColumn();
+$totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,16 +37,88 @@ $totals  = [$totalMales, $totalFemales];
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
+
+    <style>
+    body {
+        font-family: 'Poppins', sans-serif;
+        background: #f1f4f9;
+    }
+
+    .main {
+        padding: 30px 22px;
+        min-height: 100vh;
+    }
+
+    .stat-card {
+        color: #fff;
+        border-radius: 18px;
+        padding: 28px;
+        position: relative;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, .12);
+        transition: .3s ease;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-6px);
+    }
+
+    .stat-card h2 {
+        font-weight: 700;
+        font-size: 30px;
+    }
+
+    .stat-card small {
+        opacity: .9;
+    }
+
+    .stat-card i {
+        position: absolute;
+        right: 22px;
+        top: 22px;
+        font-size: 55px;
+        opacity: .25;
+    }
+
+    .bg-students {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+
+    .bg-male {
+        background: linear-gradient(135deg, #1e88e5, #42a5f5);
+    }
+
+    .bg-female {
+        background: linear-gradient(135deg, #ec407a, #f06292);
+    }
+
+    .bg-teachers {
+        background: linear-gradient(135deg, #009688, #26a69a);
+    }
+
+    footer {
+        background: #fff;
+        padding: 18px;
+        text-align: center;
+        font-size: 14px;
+        color: #6c757d;
+        border-top: 1px solid #e2e6ea;
+    }
+
+    footer span {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+    </style>
 </head>
 
 <body>
 
-    <?php include __DIR__ . '/../includes/administrator_sidebar.php'; ?>
-    <?php include __DIR__ . '/../includes/topbar.php'; ?>
+    <?php include '../includes/administrator_sidebar.php'; ?>
+    <?php include '../includes/topbar.php'; ?>
 
     <main class="main">
         <div class="container-fluid">
@@ -65,7 +128,6 @@ $totals  = [$totalMales, $totalFemales];
                 <small class="text-muted">Administrative overview of school statistics</small>
             </div>
 
-            <!-- STAT CARDS -->
             <div class="row g-4 mb-4">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-students">
@@ -100,23 +162,6 @@ $totals  = [$totalMales, $totalFemales];
                 </div>
             </div>
 
-            <!-- CHARTS -->
-            <div class="row g-4">
-                <div class="col-lg-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Students by Gender</div>
-                        <canvas id="barChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="col-lg-6">
-                    <div class="chart-card">
-                        <div class="chart-title">Gender Distribution</div>
-                        <canvas id="pieChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </main>
 
@@ -125,49 +170,6 @@ $totals  = [$totalMales, $totalFemales];
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-    const barCtx = document.getElementById('barChart');
-    const pieCtx = document.getElementById('pieChart');
-
-    /* BAR CHART */
-    new Chart(barCtx, {
-        type: 'bar',
-        data: {
-            labels: ['Males', 'Females'],
-            datasets: [{
-                label: 'Students',
-                data: <?= json_encode($totals); ?>,
-                backgroundColor: ['#1e88e5', '#ec407a'],
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    /* PIE CHART */
-    new Chart(pieCtx, {
-        type: 'pie',
-        data: {
-            labels: ['Males', 'Females'],
-            datasets: [{
-                data: <?= json_encode($totals); ?>,
-                backgroundColor: ['#1e88e5', '#ec407a']
-            }]
-        },
-        options: {
-            responsive: true
-        }
-    });
-    </script>
-
 </body>
 
 </html>
