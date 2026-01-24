@@ -153,18 +153,21 @@ $totals   = array_column($data, 'total');
         margin-bottom: 18px;
     }
 
+
     footer {
         background: #fff;
-        padding: 18px;
+        padding: 20px 30px;
         text-align: center;
         font-size: 14px;
-        color: #6c757d;
-        border-top: 1px solid #e2e6ea;
+        color: #555;
+        border-top: 1px solid #ddd;
+        box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.05);
+        margin-top: 30px;
     }
 
     footer span {
-        color: #0d6efd;
         font-weight: 600;
+        color: #412461;
     }
     </style>
 </head>
@@ -266,7 +269,7 @@ $totals   = array_column($data, 'total');
     </main>
 
     <footer>
-        &copy; <?= date('Y'); ?> FTCSMS • All Rights Reserved • <span>Anatech Consult</span>
+        <span>© <?= date('Y'); ?> Fast Track College. All rights reserved. Powered by Anatech Consult</span>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
