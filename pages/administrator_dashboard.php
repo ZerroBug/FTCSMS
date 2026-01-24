@@ -24,6 +24,15 @@ $totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'"
 $totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
 $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
 
+/* ===================== ADDITIONAL METRICS ===================== */
+// Boarding vs Day Students
+$totalBoarding = $pdo->query("SELECT COUNT(*) FROM students WHERE hall_of_residence IS NOT NULL AND hall_of_residence <> ''")->fetchColumn();
+$totalDay      = $pdo->query("SELECT COUNT(*) FROM students WHERE hall_of_residence IS NULL OR hall_of_residence = ''")->fetchColumn();
+
+// Teaching vs Non-Teaching Staff
+$totalTeaching    = $pdo->query("SELECT COUNT(*) FROM teachers WHERE staff_type = 'Teaching'")->fetchColumn();
+$totalNonTeaching = $pdo->query("SELECT COUNT(*) FROM teachers WHERE staff_type = 'Non-Teaching'")->fetchColumn();
+
 /* ===================== STUDENTS BY LEARNING AREA ===================== */
 $stmt = $pdo->query("
     SELECT la.area_name AS learning_area,
@@ -116,6 +125,22 @@ $totals   = array_column($data, 'total');
         background: linear-gradient(135deg, #009688, #26a69a);
     }
 
+    .bg-boarding {
+        background: linear-gradient(135deg, #ff9800, #ffb74d);
+    }
+
+    .bg-day {
+        background: linear-gradient(135deg, #8bc34a, #aed581);
+    }
+
+    .bg-teaching {
+        background: linear-gradient(135deg, #2196f3, #64b5f6);
+    }
+
+    .bg-nonteaching {
+        background: linear-gradient(135deg, #9c27b0, #ba68c8);
+    }
+
     .chart-card {
         background: #fff;
         border-radius: 18px;
@@ -156,6 +181,7 @@ $totals   = array_column($data, 'total');
                 <small class="text-muted">Administrative overview of school statistics</small>
             </div>
 
+            <!-- FIRST ROW: General Students & Teachers -->
             <div class="row g-4 mb-4">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-students">
@@ -187,6 +213,39 @@ $totals   = array_column($data, 'total');
                 </div>
             </div>
 
+            <!-- SECOND ROW: Boarding, Day, Teaching, Non-Teaching -->
+            <div class="row g-4 mb-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card bg-boarding">
+                        <h2><?= number_format($totalBoarding); ?></h2>
+                        <small>Boarding Students</small>
+                        <i class="fas fa-bed"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card bg-day">
+                        <h2><?= number_format($totalDay); ?></h2>
+                        <small>Day Students</small>
+                        <i class="fas fa-school"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card bg-teaching">
+                        <h2><?= number_format($totalTeaching); ?></h2>
+                        <small>Teaching Staff</small>
+                        <i class="fas fa-chalkboard"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card bg-nonteaching">
+                        <h2><?= number_format($totalNonTeaching); ?></h2>
+                        <small>Non-Teaching Staff</small>
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHART ROW: Learning Areas -->
             <div class="row g-4">
                 <div class="col-lg-7">
                     <div class="chart-card">
