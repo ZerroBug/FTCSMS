@@ -6,11 +6,8 @@ error_reporting(E_ALL);
 
 require '../includes/db_connection.php';
 
-if (
-    !isset($_SESSION['user_id']) ||
-    !isset($_SESSION['user_role']) ||
-    $_SESSION['user_role'] !== 'Administrator'
-) {
+// Check admin authentication
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Administrator') {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
@@ -21,11 +18,29 @@ $user_name  = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
 $user_photo = $_SESSION['user_photo'];
 
-/* ===================== METRICS (NO CLASSES) ===================== */
+/* ===================== METRICS ===================== */
 $totalStudents = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Male'")->fetchColumn();
-$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Female'")->fetchColumn();
+$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'")->fetchColumn();
+$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
 $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
+
+/* Students by Learning Area */
+$stmt = $pdo->query("
+    SELECT la.name AS learning_area,
+           COUNT(s.id) AS total,
+           SUM(CASE WHEN s.gender='Male' THEN 1 ELSE 0 END) AS males,
+           SUM(CASE WHEN s.gender='Female' THEN 1 ELSE 0 END) AS females
+    FROM students s
+    JOIN learning_areas la ON s.learning_area_id = la.id
+    GROUP BY la.name
+    ORDER BY la.name
+");
+$data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$labels   = array_column($data,'learning_area');
+$males    = array_column($data,'males');
+$females  = array_column($data,'females');
+$totals   = array_column($data,'total');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,6 +52,7 @@ $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
@@ -97,6 +113,18 @@ $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
 
     .bg-teachers {
         background: linear-gradient(135deg, #009688, #26a69a);
+    }
+
+    .chart-card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 26px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+    }
+
+    .chart-title {
+        font-weight: 600;
+        margin-bottom: 18px;
     }
 
     footer {
@@ -162,6 +190,23 @@ $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
                 </div>
             </div>
 
+            <!-- Learning Area Charts -->
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <div class="chart-card">
+                        <div class="chart-title">Students by Learning Area</div>
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="chart-card">
+                        <div class="chart-title">Learning Area Distribution</div>
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -170,6 +215,63 @@ $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    // Bar chart - students by learning area
+    new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($labels); ?>,
+            datasets: [{
+                    label: 'Males',
+                    data: <?= json_encode($males); ?>,
+                    backgroundColor: '#1e88e5',
+                    borderRadius: 8
+                },
+                {
+                    label: 'Females',
+                    data: <?= json_encode($females); ?>,
+                    backgroundColor: '#ec407a',
+                    borderRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Pie chart - distribution of students in learning areas
+    new Chart(document.getElementById('pieChart'), {
+        type: 'pie',
+        data: {
+            labels: <?= json_encode($labels); ?>,
+            datasets: [{
+                data: <?= json_encode($totals); ?>,
+                backgroundColor: ['#667eea', '#1e88e5', '#ec407a', '#009688', '#ffb300']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    </script>
+
 </body>
 
 </html>
