@@ -9,7 +9,7 @@
 
     <!-- LOGO -->
     <div class="logo">
-        <?php include $_SERVER['DOCUMENT_ROOT'] . '/ftcsms/config.php'; ?>
+        <?php include $_SERVER['DOCUMENT_ROOT'] . '/config.php'; ?>
         <img src="<?= BASE_URL ?>assets/images/logo.png" alt="Logo" class="sidebar-logo" />
         <div>
             <p class="small">Fast • Reliable • Seamless</p>
