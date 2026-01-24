@@ -10,19 +10,36 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION[
     exit;
 }
 
-$user_name = $_SESSION['user_name'];
+$user_name  = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
 $user_photo = $_SESSION['user_photo'];
 
 /* ===================== METRICS ===================== */
+$totalStudents    = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
+$totalMales       = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'")->fetchColumn();
+$totalFemales     = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
+$totalBoarding    = $pdo->query("SELECT COUNT(*) FROM students WHERE hall_of_residence IS NOT NULL AND hall_of_residence <> ''")->fetchColumn();
+$totalDay         = $pdo->query("SELECT COUNT(*) FROM students WHERE hall_of_residence IS NULL OR hall_of_residence = ''")->fetchColumn();
+$totalTeaching    = $pdo->query("SELECT COUNT(*) FROM teachers WHERE staff_type='Teaching'")->fetchColumn();
+$totalNonTeaching = $pdo->query("SELECT COUNT(*) FROM teachers WHERE staff_type='Non-Teaching'")->fetchColumn();
+$totalFeesPaid    = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payments")->fetchColumn();
 
-// Total Students
-$totalStudents = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'")->fetchColumn();
-$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
-$totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payments")->fetchColumn();
-
-
+/* ===================== STUDENTS BY LEARNING AREA ===================== */
+$stmt = $pdo->query("
+    SELECT la.area_name AS learning_area,
+           SUM(CASE WHEN s.hall_of_residence IS NOT NULL AND s.hall_of_residence <> '' THEN 1 ELSE 0 END) AS boarding,
+           SUM(CASE WHEN s.hall_of_residence IS NULL OR s.hall_of_residence = '' THEN 1 ELSE 0 END) AS day
+    FROM students s
+    JOIN learning_areas la ON s.learning_area_id = la.id
+    WHERE la.status='Active'
+    GROUP BY la.area_name
+    ORDER BY la.area_name
+");
+$data      = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$labels    = array_column($data, 'learning_area');
+$boarding  = array_column($data, 'boarding');
+$day       = array_column($data, 'day');
+$totals    = array_map(fn($b,$d)=>$b+$d, $boarding, $day);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -32,17 +49,18 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>FTCSMS — Super Admin Dashboard</title>
 
-    <!-- Bootstrap 5 -->
+    <!-- Bootstrap & FontAwesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- Custom CSS -->
     <link href="../assets/css/styles.css" rel="stylesheet">
+
     <style>
     body {
         font-family: "Poppins", sans-serif;
@@ -55,7 +73,6 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         min-height: 100vh;
     }
 
-    /* Metric Cards */
     .card-counter {
         border-radius: 16px;
         color: #fff;
@@ -106,7 +123,6 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         opacity: 0.2;
     }
 
-    /* Card Colors */
     .card-counter.gold {
         background: linear-gradient(135deg, #ffb300, #ffcb59);
     }
@@ -123,7 +139,14 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         background: linear-gradient(135deg, #43a047, #66bb6a);
     }
 
-    /* Charts */
+    .card-counter.orange {
+        background: linear-gradient(135deg, #ff5722, #ff8a50);
+    }
+
+    .card-counter.teal {
+        background: linear-gradient(135deg, #009688, #26a69a);
+    }
+
     .chart-container {
         background: #fff;
         padding: 25px;
@@ -138,7 +161,6 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         margin-bottom: 20px;
     }
 
-    /* Footer */
     footer {
         background: #fff;
         padding: 20px 30px;
@@ -154,51 +176,19 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
         font-weight: 600;
         color: #412461;
     }
-
-    /* Responsive */
-    @media(max-width:991px) {
-        .main {
-            padding: 20px 15px;
-        }
-
-        .card-counter i {
-            font-size: 35px;
-            top: 15px;
-            right: 15px;
-        }
-    }
-
-    /* ---------------- DASHBOARD FOOTER ---------------- */
-    .footer {
-        background: #ffffff;
-        border-top: 1px solid #e5e7eb;
-        padding: 14px 20px;
-        text-align: center;
-        font-size: 13px;
-        color: #6b7280;
-        margin-top: 40px;
-    }
-
-    .footer span {
-        font-weight: 500;
-        color: #412461;
-    }
     </style>
 </head>
 
 <body>
 
-    <!-- SIDEBAR -->
     <?php include '../includes/super_admin_sidebar.php'; ?>
-    <!-- TOPBAR -->
     <?php include '../includes/topbar.php'; ?>
 
     <main class="main">
         <div class="container-fluid">
-            <!-- Welcome -->
             <div class="mb-4">
                 <h4>Welcome back, <span class="text-primary"><?= htmlspecialchars($user_name); ?></span></h4>
-                <small class="text-muted">Quick overview of student statistics and finances</small>
+                <small class="text-muted">Quick overview of student statistics, staff, and finances</small>
             </div>
 
             <!-- Metric Cards -->
@@ -231,50 +221,74 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
                         <i class="fas fa-file-invoice-dollar"></i>
                     </div>
                 </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card-counter orange">
+                        <h3><?= number_format($totalBoarding); ?></h3>
+                        <small>Total Boarding Students</small>
+                        <i class="fas fa-bed"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card-counter teal">
+                        <h3><?= number_format($totalDay); ?></h3>
+                        <small>Total Day Students</small>
+                        <i class="fas fa-school"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card-counter gold">
+                        <h3><?= number_format($totalTeaching); ?></h3>
+                        <small>Total Teaching Staff</small>
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card-counter purple">
+                        <h3><?= number_format($totalNonTeaching); ?></h3>
+                        <small>Total Non-Teaching Staff</small>
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                </div>
             </div>
 
             <!-- Charts Section -->
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="chart-container">
-                        <div class="chart-title">Students by Year Group (M/F)</div>
-                        <canvas id="yearGroupBarChart"></canvas>
+                        <div class="chart-title">Students by Learning Area (Boarding vs Day)</div>
+                        <canvas id="learningAreaBarChart"></canvas>
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="chart-container">
-                        <div class="chart-title">Total Students Distribution</div>
-                        <canvas id="yearGroupPieChart"></canvas>
+                        <div class="chart-title">Learning Area Distribution</div>
+                        <canvas id="learningAreaPieChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
     </main>
-    <footer class="footer">
-        <span>
-            © <?php echo date('Y'); ?> Fast Track College. All rights reserved.
-            Powered by Anatech Consult
-        </span>
-    </footer>
 
+    <footer>
+        <span>© <?= date('Y'); ?> Fast Track College. All rights reserved. Powered by Anatech Consult</span>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    const barCtx = document.getElementById('yearGroupBarChart').getContext('2d');
-    new Chart(barCtx, {
+    new Chart(document.getElementById('learningAreaBarChart'), {
         type: 'bar',
         data: {
-            labels: <?= json_encode($yearGroupLabels); ?>,
+            labels: <?= json_encode($labels); ?>,
             datasets: [{
-                    label: 'Males',
-                    data: <?= json_encode($yearGroupMales); ?>,
-                    backgroundColor: '#1e88e5',
+                    label: 'Boarding',
+                    data: <?= json_encode($boarding); ?>,
+                    backgroundColor: '#ff9800',
                     borderRadius: 5
                 },
                 {
-                    label: 'Females',
-                    data: <?= json_encode($yearGroupFemales); ?>,
-                    backgroundColor: '#ff4081',
+                    label: 'Day',
+                    data: <?= json_encode($day); ?>,
+                    backgroundColor: '#8bc34a',
                     borderRadius: 5
                 }
             ]
@@ -287,29 +301,21 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
                 }
             },
             scales: {
-                x: {
-                    stacked: true,
-                    grid: {
-                        display: false
-                    }
-                },
                 y: {
-                    stacked: true,
                     beginAtZero: true
                 }
             }
         }
     });
 
-    const pieCtx = document.getElementById('yearGroupPieChart').getContext('2d');
-    new Chart(pieCtx, {
+    new Chart(document.getElementById('learningAreaPieChart'), {
         type: 'pie',
         data: {
-            labels: <?= json_encode($yearGroupLabels); ?>,
+            labels: <?= json_encode($labels); ?>,
             datasets: [{
-                data: <?= json_encode($yearGroupTotals); ?>,
-                backgroundColor: ['#6a5acd', '#1e88e5', '#ff4081', '#ffb300', '#43a047', '#8d78ff',
-                    '#42a5f5', '#ff6f61'
+                data: <?= json_encode($totals); ?>,
+                backgroundColor: ['#ffb300', '#6a5acd', '#1e88e5', '#43a047', '#ff5722', '#8d78ff',
+                    '#42a5f5', '#ff4081'
                 ]
             }]
         },
@@ -317,11 +323,7 @@ $totalFeesPaid = $pdo->query("SELECT COALESCE(SUM(amount_paid),0) FROM fee_payme
             responsive: true,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 15,
-                        padding: 15
-                    }
+                    position: 'bottom'
                 }
             }
         }
