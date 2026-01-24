@@ -7,11 +7,9 @@ error_reporting(E_ALL);
 require '../includes/db_connection.php';
 
 /* ===================== AUTH CHECK ===================== */
-if (
-    !isset($_SESSION['user_id']) ||
-    !isset($_SESSION['user_role']) ||
-    $_SESSION['user_role'] !== 'Accountant'
-) {
+
+
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Accountant') {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
