@@ -24,23 +24,24 @@ $totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'"
 $totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
 $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
 
-/* Students by Learning Area */
+/* ===================== STUDENTS BY LEARNING AREA ===================== */
 $stmt = $pdo->query("
-    SELECT la.name AS learning_area,
+    SELECT la.area_name AS learning_area,
            COUNT(s.id) AS total,
            SUM(CASE WHEN s.gender='Male' THEN 1 ELSE 0 END) AS males,
            SUM(CASE WHEN s.gender='Female' THEN 1 ELSE 0 END) AS females
     FROM students s
     JOIN learning_areas la ON s.learning_area_id = la.id
-    GROUP BY la.name
-    ORDER BY la.name
+    WHERE la.status = 'Active'
+    GROUP BY la.area_name
+    ORDER BY la.area_name
 ");
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$labels   = array_column($data,'learning_area');
-$males    = array_column($data,'males');
-$females  = array_column($data,'females');
-$totals   = array_column($data,'total');
+$labels   = array_column($data, 'learning_area');
+$males    = array_column($data, 'males');
+$females  = array_column($data, 'females');
+$totals   = array_column($data, 'total');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -150,7 +151,6 @@ $totals   = array_column($data,'total');
 
     <main class="main">
         <div class="container-fluid">
-
             <div class="mb-4">
                 <h4 class="fw-semibold">Welcome, <?= htmlspecialchars($user_name); ?></h4>
                 <small class="text-muted">Administrative overview of school statistics</small>
@@ -164,7 +164,6 @@ $totals   = array_column($data,'total');
                         <i class="fas fa-user-graduate"></i>
                     </div>
                 </div>
-
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-male">
                         <h2><?= number_format($totalMales); ?></h2>
@@ -172,7 +171,6 @@ $totals   = array_column($data,'total');
                         <i class="fas fa-mars"></i>
                     </div>
                 </div>
-
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-female">
                         <h2><?= number_format($totalFemales); ?></h2>
@@ -180,7 +178,6 @@ $totals   = array_column($data,'total');
                         <i class="fas fa-venus"></i>
                     </div>
                 </div>
-
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-teachers">
                         <h2><?= number_format($totalTeachers); ?></h2>
@@ -190,7 +187,6 @@ $totals   = array_column($data,'total');
                 </div>
             </div>
 
-            <!-- Learning Area Charts -->
             <div class="row g-4">
                 <div class="col-lg-7">
                     <div class="chart-card">
@@ -215,9 +211,7 @@ $totals   = array_column($data,'total');
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
-    // Bar chart - students by learning area
     new Chart(document.getElementById('barChart'), {
         type: 'bar',
         data: {
@@ -251,7 +245,6 @@ $totals   = array_column($data,'total');
         }
     });
 
-    // Pie chart - distribution of students in learning areas
     new Chart(document.getElementById('pieChart'), {
         type: 'pie',
         data: {
