@@ -1,46 +1,30 @@
 <?php
 session_start();
-session_start();
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
 require '../includes/db_connection.php';
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Administrator') {
+
+/* ===================== AUTH CHECK ===================== */
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'Administrator') {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
     exit;
 }
 
-
-$user_name = $_SESSION['user_name'];
+/* ===================== USER INFO ===================== */
+$user_name  = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
-
-      $user_photo = $_SESSION['user_photo'];
+$user_photo = $_SESSION['user_photo'];
 
 /* ===================== METRICS ===================== */
 $totalStudents = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Male'")->fetchColumn();
-$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender='Female'")->fetchColumn();
+$totalMales    = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Male'")->fetchColumn();
+$totalFemales  = $pdo->query("SELECT COUNT(*) FROM students WHERE gender = 'Female'")->fetchColumn();
 $totalTeachers = $pdo->query("SELECT COUNT(*) FROM teachers")->fetchColumn();
-
-/* Students by Year Group */
-$stmt = $pdo->query("
-    SELECT c.year_group,
-           COUNT(s.id) total,
-           SUM(CASE WHEN s.gender='Male' THEN 1 ELSE 0 END) males,
-           SUM(CASE WHEN s.gender='Female' THEN 1 ELSE 0 END) females
-    FROM students s
-    JOIN classes c ON s.class_id = c.id
-    GROUP BY c.year_group
-    ORDER BY c.year_group
-");
-$data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$labels   = array_column($data,'year_group');
-$males    = array_column($data,'males');
-$females  = array_column($data,'females');
-$totals   = array_column($data,'total');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -55,22 +39,20 @@ $totals   = array_column($data,'total');
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- Custom CSS -->
-    <link href="../assets/css/styles.css" rel="stylesheet">
 
+    <link href="../assets/css/styles.css" rel="stylesheet">
 
     <style>
     body {
         font-family: 'Poppins', sans-serif;
-        background: #f1f4f9
+        background: #f1f4f9;
     }
 
     .main {
         padding: 30px 22px;
-        min-height: 100vh
+        min-height: 100vh;
     }
 
-    /* Cards */
     .stat-card {
         color: #fff;
         border-radius: 18px;
@@ -78,20 +60,20 @@ $totals   = array_column($data,'total');
         position: relative;
         box-shadow: 0 15px 35px rgba(0, 0, 0, .12);
         transition: .3s ease;
-        overflow: hidden
+        overflow: hidden;
     }
 
     .stat-card:hover {
-        transform: translateY(-6px)
+        transform: translateY(-6px);
     }
 
     .stat-card h2 {
         font-weight: 700;
-        font-size: 30px
+        font-size: 30px;
     }
 
     .stat-card small {
-        opacity: .9
+        opacity: .9;
     }
 
     .stat-card i {
@@ -99,36 +81,30 @@ $totals   = array_column($data,'total');
         right: 22px;
         top: 22px;
         font-size: 55px;
-        opacity: .25
+        opacity: .25;
     }
 
-    /* Gradients */
     .bg-students {
-        background: linear-gradient(135deg, #667eea, #764ba2)
+        background: linear-gradient(135deg, #667eea, #764ba2);
     }
 
     .bg-male {
-        background: linear-gradient(135deg, #1e88e5, #42a5f5)
+        background: linear-gradient(135deg, #1e88e5, #42a5f5);
     }
 
     .bg-female {
-        background: linear-gradient(135deg, #ec407a, #f06292)
+        background: linear-gradient(135deg, #ec407a, #f06292);
     }
 
     .bg-teachers {
-        background: linear-gradient(135deg, #009688, #26a69a)
+        background: linear-gradient(135deg, #009688, #26a69a);
     }
 
     .chart-card {
         background: #fff;
         border-radius: 18px;
         padding: 26px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, .08)
-    }
-
-    .chart-title {
-        font-weight: 600;
-        margin-bottom: 18px
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
     }
 
     footer {
@@ -137,12 +113,12 @@ $totals   = array_column($data,'total');
         text-align: center;
         font-size: 14px;
         color: #6c757d;
-        border-top: 1px solid #e2e6ea
+        border-top: 1px solid #e2e6ea;
     }
 
     footer span {
         color: #0d6efd;
-        font-weight: 600
+        font-weight: 600;
     }
     </style>
 </head>
@@ -160,6 +136,7 @@ $totals   = array_column($data,'total');
                 <small class="text-muted">Administrative overview of school statistics</small>
             </div>
 
+            <!-- METRICS -->
             <div class="row g-4 mb-4">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-students">
@@ -172,7 +149,7 @@ $totals   = array_column($data,'total');
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-male">
                         <h2><?= number_format($totalMales); ?></h2>
-                        <small>Total Males</small>
+                        <small>Male Students</small>
                         <i class="fas fa-mars"></i>
                     </div>
                 </div>
@@ -180,7 +157,7 @@ $totals   = array_column($data,'total');
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card bg-female">
                         <h2><?= number_format($totalFemales); ?></h2>
-                        <small>Total Females</small>
+                        <small>Female Students</small>
                         <i class="fas fa-venus"></i>
                     </div>
                 </div>
@@ -194,18 +171,12 @@ $totals   = array_column($data,'total');
                 </div>
             </div>
 
-            <div class="row g-4">
-                <div class="col-lg-7">
+            <!-- CHART -->
+            <div class="row">
+                <div class="col-lg-6 mx-auto">
                     <div class="chart-card">
-                        <div class="chart-title">Students by Year Group</div>
-                        <canvas id="barChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="col-lg-5">
-                    <div class="chart-card">
-                        <div class="chart-title">Student Distribution</div>
-                        <canvas id="pieChart"></canvas>
+                        <h6 class="fw-semibold mb-3">Student Gender Distribution</h6>
+                        <canvas id="genderChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -220,46 +191,13 @@ $totals   = array_column($data,'total');
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    new Chart(barChart, {
-        type: 'bar',
-        data: {
-            labels: <?= json_encode($labels); ?>,
-            datasets: [{
-                    label: 'Males',
-                    data: <?= json_encode($males); ?>,
-                    backgroundColor: '#1e88e5',
-                    borderRadius: 8
-                },
-                {
-                    label: 'Females',
-                    data: <?= json_encode($females); ?>,
-                    backgroundColor: '#ec407a',
-                    borderRadius: 8
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    new Chart(pieChart, {
+    new Chart(document.getElementById('genderChart'), {
         type: 'pie',
         data: {
-            labels: <?= json_encode($labels); ?>,
+            labels: ['Male', 'Female'],
             datasets: [{
-                data: <?= json_encode($totals); ?>,
-                backgroundColor: ['#667eea', '#1e88e5', '#ec407a', '#009688', '#ffb300']
+                data: [<?= $totalMales; ?>, <?= $totalFemales; ?>],
+                backgroundColor: ['#1e88e5', '#ec407a']
             }]
         },
         options: {
