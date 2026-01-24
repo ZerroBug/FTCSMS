@@ -1,11 +1,11 @@
-<?php 
+<?php
 session_start();
 require_once '../includes/db_connection.php';
 
-// PHPMailer manual include
-require '../includes/phpmailer/src/PHPMailer.php';
-require '../includes/phpmailer/src/SMTP.php';
-require '../includes/phpmailer/src/Exception.php';
+/* ===================== PHPMailer ===================== */
+require_once '../includes/phpmailer/src/PHPMailer.php';
+require_once '../includes/phpmailer/src/SMTP.php';
+require_once '../includes/phpmailer/src/Exception.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -21,11 +21,11 @@ $first_name  = trim($_POST['first_name'] ?? '');
 $surname     = trim($_POST['surname'] ?? '');
 $other_names = trim($_POST['other_names'] ?? '');
 $email       = trim($_POST['email'] ?? '');
-$phone       = trim($_POST['phone'] ?? '');
+$phone       = preg_replace('/\D+/', '', trim($_POST['phone'] ?? ''));
 $role        = trim($_POST['role'] ?? '');
 
 /* ===================== VALIDATION ===================== */
-if (!$first_name || !$surname || !$email || !$phone || !$role) {
+if (empty($first_name) || empty($surname) || empty($email) || empty($phone) || empty($role)) {
     $_SESSION['alert'] = alert('danger', 'All required fields must be filled.');
     header("Location: ../pages/add_user.php");
     exit;
@@ -36,21 +36,28 @@ $check = $pdo->prepare("SELECT id FROM users WHERE email = ? OR phone = ?");
 $check->execute([$email, $phone]);
 
 if ($check->rowCount() > 0) {
-    $_SESSION['alert'] = alert('warning', 'User with this email or phone already exists. Registration ignored.');
+    $_SESSION['alert'] = alert('warning', 'User with this email or phone already exists.');
     header("Location: ../pages/add_user.php");
     exit;
 }
 
 /* ===================== PASSWORD GENERATION ===================== */
-$plainPassword = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'), 0, 8);
+$plainPassword  = substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 8);
 $hashedPassword = password_hash($plainPassword, PASSWORD_DEFAULT);
 
 /* ===================== PHOTO UPLOAD ===================== */
 $photoName = null;
 if (!empty($_FILES['photo']['name'])) {
-    $allowed = ['image/jpeg','image/png'];
-    if (!in_array($_FILES['photo']['type'], $allowed)) {
-        $_SESSION['alert'] = alert('danger', 'Only JPG or PNG images allowed.');
+
+    if ($_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+        $_SESSION['alert'] = alert('danger', 'Photo upload failed.');
+        header("Location: ../pages/add_user.php");
+        exit;
+    }
+
+    $ext = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
+        $_SESSION['alert'] = alert('danger', 'Only JPG and PNG images are allowed.');
         header("Location: ../pages/add_user.php");
         exit;
     }
@@ -61,12 +68,11 @@ if (!empty($_FILES['photo']['name'])) {
         exit;
     }
 
-    $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-    $photoName = 'user_' . time() . '.' . $ext;
+    $photoName = uniqid('user_') . '.' . $ext;
     move_uploaded_file($_FILES['photo']['tmp_name'], "../assets/uploads/users/$photoName");
 }
 
-/* ===================== INSERT NEW USER ===================== */
+/* ===================== INSERT USER ===================== */
 $stmt = $pdo->prepare("
     INSERT INTO users
     (first_name, surname, other_names, email, phone, role, password, photo, status, created_at, updated_at)
@@ -85,67 +91,87 @@ $stmt->execute([
 ]);
 
 /* ===================== SEND EMAIL ===================== */
-/* ===================== SEND EMAIL (HTML PROFILE CARD VERSION) ===================== */
-/* ===================== SEND EMAIL (TEXT-PROFILE VERSION) ===================== */
+$email_status = '';
+
 try {
     $mail = new PHPMailer(true);
     $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
+    $mail->Host       = 'mail.fasttrack.edu.gh';
     $mail->SMTPAuth   = true;
-    $mail->Username   = 'anane2020@gmail.com';
-    $mail->Password   = 'fila oulp kopw teyv';  // Gmail App Password
-    $mail->SMTPSecure = 'tls';
-    $mail->Port       = 587;
+    $mail->Username   = 'noreply@fasttrack.edu.gh';
+    $mail->Password   = 'fasttrackAPP@';
+    $mail->SMTPSecure = 'ssl';
+    $mail->Port       = 465;
 
-    $mail->setFrom('anane2020@gmail.com', 'FAST_TRACK');
-    $mail->addAddress($email, $first_name . ' ' . $surname);
+    $mail->setFrom('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
+    $mail->addReplyTo('noreply@fasttrack.edu.gh', 'FAST TRACK COLLEGE');
+    $mail->addAddress($email, "{$first_name} {$surname}");
+
     $mail->isHTML(true);
-    $mail->Subject = "Your System Account Credentials";
+    $mail->Subject = 'Your System Account Credentials';
 
     $mail->Body = "
     <html>
     <head>
-        <style>
-            body { font-family: Arial, sans-serif; color: #333; }
-            .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px; background-color: #f9f9f9; }
-            h2 { color: #2a9d8f; }
-            .credentials { background-color: #e9f5f2; padding: 15px; border-radius: 8px; margin-top: 10px; }
-            .credentials p { margin: 6px 0; font-weight: bold; }
-            .footer { margin-top: 20px; font-size: 0.9em; color: #555; }
-        </style>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .header { text-align: center; }
+        .header h2 { color: #004085; }
+        .credentials { background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 15px 0; }
+        .button { display: inline-block; padding: 10px 18px; background: #004085; color: #fff; text-decoration: none; border-radius: 5px; }
+        .footer { font-size: 12px; color: #777; text-align: center; margin-top: 20px; }
+    </style>
     </head>
     <body>
         <div class='container'>
-            <h2>Welcome to FTCSMS!</h2>
-            <p>Dear {$first_name} {$surname},</p>
-            <p>Your account has been successfully created. Please find your login credentials below:</p>
-            
-            <div class='credentials'>
-                <p>Name: {$first_name} {$surname}</p>
-                <p>Role: {$role}</p>
-                <p>Email: {$email}</p>
-                <p>Temporary Password: {$plainPassword}</p>
+            <div class='header'>
+                <h2>FAST TRACK CMS</h2>
             </div>
 
-            <p>For security reasons, log in and change your password immediately.</p>
-            <p>If you encounter any issues, contact the administration office.</p>
+            <p>Dear <strong>{$first_name} {$surname}</strong>,</p>
+
+            <p>Your system account has been successfully created with the role of <strong>{$role}</strong>.</p>
+
+            <div class='credentials'>
+                <p><strong>Login URL:</strong> <a href='https://app.fasttrack.edu.gh'>https://app.fasttrack.edu.gh</a></p>
+                <p><strong>Email:</strong> {$email}</p>
+                <p><strong>Temporary Password:</strong> {$plainPassword}</p>
+            </div>
+
+            <p>Please log in and change your password immediately to secure your account.</p>
+
+            <p><a href='https://app.fasttrack.edu.gh' class='button'>Login Now</a></p>
 
             <div class='footer'>
-                Best regards,<br>
-                <strong>FTCSMS Administration Team</strong>
+                &copy; " . date('Y') . " FAST TRACK CMS. All rights reserved.
             </div>
         </div>
     </body>
     </html>
     ";
 
+    $mail->AltBody =
+        "Dear {$first_name} {$surname},\n\n" .
+        "Your system account has been created.\n\n" .
+        "Login URL: https://app.fasttrack.edu.gh\n" .
+        "Email: {$email}\n" .
+        "Temporary Password: {$plainPassword}\n\n" .
+        "Please change your password after login.\n\nFAST TRACK CMS Team";
+
     $mail->send();
+    $email_status = 'Login details email sent successfully.';
+
 } catch (Exception $e) {
-    $_SESSION['alert'] .= alert('warning', 'Could not send credentials email: ' . htmlspecialchars($mail->ErrorInfo));
+    $email_status = 'Email failed: ' . $mail->ErrorInfo;
 }
 
 /* ===================== SUCCESS ALERT ===================== */
-$_SESSION['alert'] = alert('success', "User created successfully. Temporary password: <strong>$plainPassword</strong>");
+$_SESSION['alert'] = alert(
+    'success',
+    "User created successfully.<br>$email_status"
+);
+
 header("Location: ../pages/add_user.php");
 exit;
 
