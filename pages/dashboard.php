@@ -56,6 +56,8 @@ $totals    = array_map(fn($b,$d)=>$b+$d, $boarding, $day);
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">

@@ -81,6 +81,9 @@ $total_pages = ceil($total_teachers / $limit);
         rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
+
     <style>
     body {
         font-family: 'Poppins', sans-serif;

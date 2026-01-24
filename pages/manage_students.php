@@ -95,6 +95,9 @@ $total_pages = ceil($total_students / $limit);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
+
     <style>
     body {
         font-family: 'poppins', sans-serif;
@@ -325,7 +328,7 @@ if ($_SESSION['user_role'] === 'Super_Admin') {
                 const url = this.getAttribute('href');
                 const confirmed = confirm(
                     "⚠️ Are you sure you want to delete this student?\nThis action cannot be undone."
-                    );
+                );
                 if (confirmed) {
                     window.location.href = url;
                 }

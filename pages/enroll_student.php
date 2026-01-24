@@ -42,6 +42,8 @@ $learningAreas = $pdo->query("SELECT *  FROM learning_areas ORDER BY area_name A
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
     <!-- Custom CSS -->
     <link href="../assets/css/styles.css" rel="stylesheet">
 
