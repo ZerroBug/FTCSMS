@@ -65,6 +65,9 @@ $totals   = array_column($data, 'total');
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
     <link href="../assets/css/styles.css" rel="stylesheet">
 
     <style>
