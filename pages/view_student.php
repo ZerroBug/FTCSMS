@@ -5,7 +5,7 @@ include '../includes/db_connection.php';
 if (
     !isset($_SESSION['user_id']) ||
     !isset($_SESSION['user_role']) ||
-    $_SESSION['user_role'] !== 'Super_Admin'
+    !in_array($_SESSION['user_role'], ['Super_Admin', 'Administrator'])
 ) {
     session_unset();
     session_destroy();
