@@ -89,7 +89,13 @@ if (!$std) {
 
 <body>
     <!-- Sidebar -->
-    <?php include '../includes/super_admin_sidebar.php'; ?>
+    <?php
+    if ($_SESSION['user_role'] === 'Super_Admin') {
+        include '../includes/super_admin_sidebar.php';
+    } elseif ($_SESSION['user_role'] === 'Administrator') {
+        include '../includes/administrator_sidebar.php';
+    }
+    ?>
 
     <!-- Topbar -->
     <?php include '../includes/topbar.php'; ?>
