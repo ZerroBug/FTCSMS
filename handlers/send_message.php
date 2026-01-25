@@ -131,7 +131,7 @@ foreach ($recipients as $r) {
 
 if ($channel === 'SMS') {
     $api_key = 'SWt0UGptYVpPaHRpdmt5allmZkk'; // replace with your Arkesel API key
-    $sender  = 'FAST_TRACK';
+    $sender  = 'FastTrack';
 
 
     
