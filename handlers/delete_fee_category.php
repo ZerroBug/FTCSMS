@@ -2,8 +2,13 @@
 session_start();
 require '../includes/db_connection.php';
 
-// Only Super_Admin can access
-if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Super_Admin') {
+if (
+    !isset($_SESSION['user_id']) ||
+    !isset($_SESSION['user_role']) ||
+    !in_array($_SESSION['user_role'], ['Super_Admin', 'Accountant'])
+) {
+    session_unset();
+    session_destroy();
     header("Location: ../index.php");
     exit;
 }
