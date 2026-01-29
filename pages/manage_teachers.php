@@ -260,7 +260,7 @@ if (isset($_SESSION['alert'])) {
                                             class="btn btn-sm btn-outline-info"><i class="fas fa-eye"></i></a>
                                         <a href="update_teacher.php?id=<?= $t['id'] ?>"
                                             class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></a>
-                                        <a href="delete_teacher.php?id=<?= $t['id'] ?>"
+                                        <a href="../handlers/delete_teacher.php?id=<?= $t['id'] ?>"
                                             class="btn btn-sm btn-outline-danger delete-btn"><i
                                                 class="fas fa-trash"></i></a>
                                     </div>
