@@ -3,11 +3,7 @@ session_start();
 require '../includes/db_connection.php';
 
 /* ===================== AUTH CHECK ===================== */
-if (
-    !isset($_SESSION['user_id']) ||
-    !isset($_SESSION['user_role']) ||
-    $_SESSION['user_role'] !== 'Accountant'
-) {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Accountant') {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
@@ -18,20 +14,24 @@ $user_name  = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
 $user_photo = $_SESSION['user_photo'];
 
-/* ================= DATA ================= */
-
-// Students (NO CLASSES)
+/* ===================== FETCH DATA ===================== */
 $students = $pdo->query("
     SELECT id, CONCAT(first_name,' ',surname) AS name
     FROM students
     ORDER BY name
 ")->fetchAll(PDO::FETCH_ASSOC);
 
-// Academic Years
 $academicYears = $pdo->query("
     SELECT id, year_name 
     FROM academic_years 
     ORDER BY year_name DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$feeCategories = $pdo->query("
+    SELECT fc.*, la.area_name
+    FROM fee_categories fc
+    LEFT JOIN learning_areas la ON fc.learning_area_id = la.id
+    WHERE fc.status='Active'
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -40,14 +40,11 @@ $academicYears = $pdo->query("
 
 <head>
     <meta charset="UTF-8">
-    <title>Record Fee Payment</title>
-
+    <title>Record Fee Payment | Accounts</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
-
     <style>
     body {
         background: #f4f6f9;
@@ -56,15 +53,12 @@ $academicYears = $pdo->query("
 
     .card {
         border-radius: 14px;
-    }
-
-    .form-control,
-    .form-select {
-        height: 48px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
     }
 
     .table td input {
-        height: 38px;
         width: 100%;
         text-align: right;
     }
@@ -86,7 +80,6 @@ $academicYears = $pdo->query("
 </head>
 
 <body>
-
     <?php include '../includes/accounts_sidebar.php'; ?>
     <?php include '../includes/topbar.php'; ?>
 
@@ -94,87 +87,66 @@ $academicYears = $pdo->query("
         <div class="container-fluid">
 
             <?php
-if (isset($_SESSION['alert'])) {
-    echo $_SESSION['alert'];
-    unset($_SESSION['alert']);
-}
+if (isset($_SESSION['alert'])) { echo $_SESSION['alert']; unset($_SESSION['alert']); }
 ?>
 
             <h5 class="fw-semibold mb-3">Record Fee Payment</h5>
-            <small class="text-muted mb-4 d-block">
-                Allocate one payment to multiple fee items
-            </small>
+            <small class="text-muted mb-4 d-block">Allocate one payment to multiple fee items</small>
 
-            <form action="../handlers/process_fee_payment.php" method="POST" id="paymentForm">
+            <form action="../handlers/vpayment_pay.php" method="POST" id="paymentForm">
 
                 <!-- STUDENT & YEAR -->
                 <div class="card mb-4 p-4">
                     <div class="row g-3">
-
                         <div class="col-md-8 col-12">
                             <label class="form-label">Student</label>
                             <select id="student_id" name="student_id" class="form-select" required>
                                 <option value="">Search student...</option>
-                                <?php foreach ($students as $s): ?>
-                                <option value="<?= $s['id'] ?>">
-                                    <?= htmlspecialchars($s['name']) ?>
-                                </option>
+                                <?php foreach($students as $s): ?>
+                                <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-
                         <div class="col-md-4 col-12">
                             <label class="form-label">Academic Year</label>
                             <select name="academic_year_id" id="academic_year_id" class="form-select" required>
                                 <option value="">Select</option>
-                                <?php foreach ($academicYears as $ay): ?>
-                                <option value="<?= $ay['id'] ?>">
-                                    <?= htmlspecialchars($ay['year_name']) ?>
-                                </option>
+                                <?php foreach($academicYears as $ay): ?>
+                                <option value="<?= $ay['id'] ?>"><?= htmlspecialchars($ay['year_name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-
                     </div>
                 </div>
 
                 <!-- OUTSTANDING FEES -->
                 <div class="card mb-4 p-4">
                     <h6 class="fw-semibold mb-3">Outstanding Fees</h6>
-
                     <div class="table-responsive">
                         <table class="table table-bordered align-middle">
                             <thead>
                                 <tr>
                                     <th>Category</th>
                                     <th>Type</th>
-                                    <th>Item</th>
                                     <th>Learning Area</th>
                                     <th class="text-end">Total (₵)</th>
                                     <th class="text-end">Outstanding (₵)</th>
                                     <th class="text-end">Pay Now / Qty</th>
                                 </tr>
                             </thead>
-
                             <tbody id="billTable">
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted">
-                                        Select student & academic year
-                                    </td>
+                                    <td colspan="6" class="text-center text-muted">Select student & academic year</td>
                                 </tr>
                             </tbody>
                         </table>
-
-                        <p class="note">
-                            * For <strong>Goods</strong> fees, enter quantity (max 5) instead of amount.
-                        </p>
+                        <p class="note">* For <strong>Goods</strong>, enter quantity. For Services, enter amount.</p>
                     </div>
                 </div>
 
                 <!-- PAYMENT INFO -->
                 <div class="card p-4">
                     <div class="row g-3">
-
                         <div class="col-md-4 col-12">
                             <label class="form-label">Bank Name</label>
                             <select name="bank_name" class="form-select" required>
@@ -189,39 +161,31 @@ if (isset($_SESSION['alert'])) {
                                 <option value="Zenith">Zenith</option>
                             </select>
                         </div>
-
                         <div class="col-md-4 col-12">
                             <label class="form-label">Slip / Invoice No.</label>
                             <input type="text" name="slip_number" class="form-control" required>
                         </div>
-
                         <div class="col-md-4 col-12">
                             <label class="form-label">Payment Date</label>
                             <input type="date" name="payment_date" class="form-control" required>
                         </div>
-
                         <div class="col-md-4 col-12">
                             <label class="form-label fw-semibold">Total Amount (₵)</label>
                             <input type="number" step="0.01" id="total_amount" name="total_amount"
                                 class="form-control bg-light" readonly>
                         </div>
-
                         <div class="col-md-8 col-12">
                             <label class="form-label">Remarks</label>
                             <input type="text" name="remarks" class="form-control">
                         </div>
-
                     </div>
-
                     <div class="text-end mt-4">
-                        <button class="btn btn-primary btn-lg px-5">
-                            <i class="fas fa-save me-2"></i> Save Payment
-                        </button>
+                        <button class="btn btn-primary btn-lg px-5"><i class="fas fa-save me-2"></i> Save
+                            Payment</button>
                     </div>
                 </div>
 
             </form>
-
         </div>
     </main>
 
@@ -239,11 +203,9 @@ if (isset($_SESSION['alert'])) {
     function loadBills() {
         const student = $('#student_id').val();
         const year = $('#academic_year_id').val();
-
         if (!student || !year) {
             $('#billTable').html(
-                '<tr><td colspan="7" class="text-center text-muted">Select student & academic year</td></tr>'
-            );
+                '<tr><td colspan="6" class="text-center text-muted">Select student & academic year</td></tr>');
             $('#total_amount').val('0.00');
             return;
         }
@@ -257,7 +219,6 @@ if (isset($_SESSION['alert'])) {
         });
     }
 
-    // Calculate total
     function calculateTotal() {
         let total = 0;
         $('.pay-input').each(function() {
@@ -272,12 +233,11 @@ if (isset($_SESSION['alert'])) {
         $('#total_amount').val(total.toFixed(2));
     }
 
-    // Validate inputs
     $(document).on('input', '.pay-input', function() {
         if ($(this).hasClass('goods-quantity')) {
             let v = parseInt($(this).val()) || 0;
             if (v < 0) v = 0;
-            if (v > 5) v = 5;
+            if (v > 5) v = 5; // max 5 units
             $(this).val(v);
         } else {
             let max = parseFloat($(this).data('outstanding')) || 0;
@@ -289,7 +249,6 @@ if (isset($_SESSION['alert'])) {
         calculateTotal();
     });
     </script>
-
 </body>
 
 </html>
