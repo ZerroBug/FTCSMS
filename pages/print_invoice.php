@@ -126,9 +126,10 @@ $receipt_no   = $payments[0]['receipt_no'];
             </tr>
         </table>
 
+
+        <p style="text-align:center;">Thank you for your payment!</p>
         <hr class="dashed">
         <p class="cut-line">— — — — — CUT HERE — — — — —</p>
-        <p style="text-align:center;">Thank you for your payment!</p>
     </div>
 
     <script>
