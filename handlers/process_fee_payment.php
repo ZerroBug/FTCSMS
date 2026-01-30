@@ -3,11 +3,7 @@ session_start();
 require '../includes/db_connection.php';
 
 /* ===================== AUTH CHECK ===================== */
-if (
-    !isset($_SESSION['user_id']) ||
-    !isset($_SESSION['user_role']) ||
-    $_SESSION['user_role'] !== 'Accountant'
-) {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'Accountant') {
     session_unset();
     session_destroy();
     header("Location: ../index.php");
@@ -22,12 +18,8 @@ $slip_number      = trim($_POST['slip_number'] ?? '');
 $payment_date     = $_POST['payment_date'] ?? date('Y-m-d');
 $remarks          = trim($_POST['remarks'] ?? '');
 
-/* ===================== VALIDATE PAYMENTS ===================== */
 if (!isset($_POST['payments']) || empty($_POST['payments'])) {
-    $_SESSION['alert'] = "<div class='alert alert-warning alert-dismissible fade show'>
-        <i class='fas fa-exclamation-triangle me-2'></i> No payments submitted. Please select at least one fee item.
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
+    $_SESSION['alert'] = "<div class='alert alert-warning'>No payments selected!</div>";
     header('Location: ../pages/fee_payments.php');
     exit;
 }
@@ -35,12 +27,14 @@ if (!isset($_POST['payments']) || empty($_POST['payments'])) {
 try {
     $pdo->beginTransaction();
 
+    $inserted_ids = []; // To track inserted payments
+
     foreach ($_POST['payments'] as $item_id => $value) {
         $item_id = intval($item_id);
 
-        // Fetch fee item and its category
+        // Fetch fee item and category
         $itemStmt = $pdo->prepare("
-            SELECT fi.id, fi.category_id, fi.amount, fc.category_type
+            SELECT fi.id, fi.category_id, fi.amount, fc.category_type, fc.category_name
             FROM fee_items fi
             JOIN fee_categories fc ON fc.id = fi.category_id
             WHERE fi.id = ?
@@ -53,7 +47,7 @@ try {
         $unit_price    = floatval($item['amount']);
         $category_type = $item['category_type'];
 
-        // Get total already paid for this student/item/year
+        // Total paid so far
         $paidStmt = $pdo->prepare("
             SELECT COALESCE(SUM(amount_paid),0)
             FROM fee_payments
@@ -62,29 +56,23 @@ try {
         $paidStmt->execute([$student_id, $item_id, $academic_year_id]);
         $total_paid = floatval($paidStmt->fetchColumn());
 
-        // Determine payment amount based on category type
+        // Determine payment
         if ($category_type === 'Goods') {
-            $quantity = isset($value['quantity']) ? max(0, intval($value['quantity'])) : 0;
+            $quantity = max(0, intval($value['quantity'] ?? 0));
             $amount_paid = $quantity * $unit_price;
-        } else { // Services or other types
+        } else {
             $quantity = 1;
-            $amount_paid = isset($value['amount']) ? floatval($value['amount']) : 0;
+            $amount_paid = floatval($value['amount'] ?? 0);
         }
 
-        // Skip if nothing is paid
         if ($amount_paid <= 0) continue;
 
         $outstanding = max(0, $unit_price - $total_paid);
-
-        // Prevent overpayment
         if ($amount_paid > $outstanding && $outstanding > 0) {
             $amount_paid = $outstanding;
         }
-
-        // Skip if fully paid
         if ($amount_paid <= 0) continue;
 
-        // Insert payment
         $stmt = $pdo->prepare("
             INSERT INTO fee_payments
             (student_id, fee_category_id, fee_item_id, quantity, amount_paid, receipt_no, academic_year_id, semester, payment_date, bank_name, slip_number, remarks, outstanding_balance, created_at)
@@ -98,31 +86,34 @@ try {
             $amount_paid,
             $slip_number,
             $academic_year_id,
-            'Semester 1', // Can be made dynamic later
+            'Semester 1',
             $payment_date,
             $bank_name,
             $slip_number,
             $remarks,
             max(0, $outstanding - $amount_paid)
         ]);
+
+        $inserted_ids[] = $pdo->lastInsertId();
     }
 
     $pdo->commit();
 
-    $_SESSION['alert'] = "<div class='alert alert-success alert-dismissible fade show'>
-        <i class='fas fa-check-circle me-2'></i> Payment recorded successfully!
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
+    // Redirect to print invoice
+    if (!empty($inserted_ids)) {
+        $ids = implode(',', $inserted_ids); // Send all inserted payment IDs
+        header("Location: ../pages/print_invoice.php?payments={$ids}");
+        exit;
+    } else {
+        $_SESSION['alert'] = "<div class='alert alert-warning'>No valid payment was recorded.</div>";
+        header('Location: ../pages/fee_payments.php');
+        exit;
+    }
 
 } catch (Exception $e) {
     $pdo->rollBack();
-    $_SESSION['alert'] = "<div class='alert alert-danger alert-dismissible fade show'>
-        <i class='fas fa-exclamation-triangle me-2'></i> Error saving payment: " . htmlspecialchars($e->getMessage()) . "
-        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-    </div>";
+    $_SESSION['alert'] = "<div class='alert alert-danger'>Error: " . htmlspecialchars($e->getMessage()) . "</div>";
+    header('Location: ../pages/fee_payments.php');
+    exit;
 }
-
-/* Redirect back to fee payment page */
-header('Location: ../pages/fee_payments.php');
-exit;
 ?>
