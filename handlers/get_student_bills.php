@@ -21,12 +21,13 @@ $learning_area_id = $student['learning_area_id'];
 
 // Fetch active fee categories for this learning area and academic year
 $catStmt = $pdo->prepare("
-    SELECT * 
-    FROM fee_categories 
-    WHERE academic_year_id = ?
-      AND status = 'Active'
-      AND (learning_area_id = ? OR learning_area_id IS NULL)
-    ORDER BY category_name
+    SELECT fc.*, la.area_name
+    FROM fee_categories fc
+    LEFT JOIN learning_areas la ON la.id = fc.learning_area_id
+    WHERE fc.academic_year_id = ?
+      AND fc.status = 'Active'
+      AND (fc.learning_area_id = ? OR fc.learning_area_id IS NULL)
+    ORDER BY fc.category_name
 ");
 $catStmt->execute([$academic_year_id, $learning_area_id]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -74,7 +75,7 @@ foreach ($categories as $cat) {
             <td>'.htmlspecialchars($cat['category_name']).'</td>
             <td>'.htmlspecialchars($cat['category_type']).'</td>
             <td>'.htmlspecialchars($item['item_name']).'</td>
-            <td>'.($cat['learning_area_id'] ? 'Area '.$cat['learning_area_id'] : 'All').'</td>
+            <td>'.($cat['area_name'] ?? 'All').'</td>
             <td class="text-end">'.number_format($total,2).'</td>
             <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
             <td class="text-end">
