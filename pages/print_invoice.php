@@ -5,10 +5,10 @@ $payment_ids = $_GET['payments'] ?? '';
 if (!$payment_ids) exit('No payments selected');
 
 $ids = array_map('intval', explode(',', $payment_ids));
-
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
 $stmt = $pdo->prepare("
-    SELECT fp.*, s.first_name, s.surname, ay.year_name, fc.category_name, fc.category_type, fi.item_name
+    SELECT fp.*, s.first_name, s.surname, ay.year_name, fc.category_name, fc.category_type, fi.item_name, fp.bank_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     JOIN academic_years ay ON ay.id = fp.academic_year_id
@@ -24,6 +24,7 @@ if (!$payments) exit('No payment records found');
 $student_name = $payments[0]['first_name'] . ' ' . $payments[0]['surname'];
 $year_name    = $payments[0]['year_name'];
 $receipt_no   = $payments[0]['receipt_no'];
+$bank_name    = $payments[0]['bank_name'];
 ?>
 
 <!DOCTYPE html>
@@ -36,11 +37,14 @@ $receipt_no   = $payments[0]['receipt_no'];
     body {
         font-family: monospace;
         font-size: 12px;
+        margin: 0;
+        padding: 0;
     }
 
     #invoice {
         width: 280px;
         margin: 0 auto;
+        padding: 5px;
     }
 
     h3,
@@ -56,22 +60,23 @@ $receipt_no   = $payments[0]['receipt_no'];
 
     th,
     td {
-        padding: 2px;
-        text-align: left;
+        padding: 2px 0;
     }
 
     td.right {
         text-align: right;
     }
 
-    hr {
-        border: 1px dashed #000;
+    hr.dashed {
+        border: 0;
+        border-top: 1px dashed #000;
+        margin: 5px 0;
     }
 
-    @media print {
-        body {
-            margin: 0;
-        }
+    .cut-line {
+        text-align: center;
+        margin: 10px 0;
+        font-size: 10px;
     }
     </style>
 </head>
@@ -80,12 +85,15 @@ $receipt_no   = $payments[0]['receipt_no'];
     <div id="invoice">
         <h3>FAST TRACK COLLEGE</h3>
         <h4>Fee Payment Invoice</h4>
-        <hr>
+        <hr class="dashed">
         <p>Student: <?= htmlspecialchars($student_name) ?></p>
         <p>Academic Year: <?= htmlspecialchars($year_name) ?></p>
         <p>Receipt No: <?= htmlspecialchars($receipt_no) ?></p>
         <p>Date: <?= date('d-m-Y H:i') ?></p>
-        <hr>
+        <?php if($bank_name): ?>
+        <p>Bank: <?= htmlspecialchars($bank_name) ?></p>
+        <?php endif; ?>
+        <hr class="dashed">
         <table>
             <tr>
                 <th>Category</th>
@@ -97,7 +105,7 @@ $receipt_no   = $payments[0]['receipt_no'];
             <tr>
                 <td><?= htmlspecialchars($p['category_name']) ?></td>
                 <td><?= htmlspecialchars($p['item_name']) ?></td>
-                <td><?= $p['quantity'] ?></td>
+                <td><?= $p['category_type']==='Goods' ? $p['quantity'] : '-' ?></td>
                 <td class="right">₵ <?= number_format($p['amount_paid'],2) ?></td>
             </tr>
             <?php $total += $p['amount_paid']; endforeach; ?>
@@ -106,15 +114,15 @@ $receipt_no   = $payments[0]['receipt_no'];
                 <td class="right"><strong>₵ <?= number_format($total,2) ?></strong></td>
             </tr>
         </table>
-        <hr>
+        <hr class="dashed">
         <p style="text-align:center;">Thank you for your payment!</p>
+        <div class="cut-line">------------------ CUT HERE ------------------</div>
     </div>
 
     <script>
     // Auto print for thermal printer
     window.onload = function() {
         window.print();
-        // Optional: redirect back after printing
         setTimeout(function() {
             window.location.href = '../pages/fee_payments.php';
         }, 1000);

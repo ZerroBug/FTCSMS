@@ -192,7 +192,7 @@ if (isset($_SESSION['alert'])) {
 
                         <div class="col-md-4 col-12">
                             <label class="form-label">Slip / Invoice No.</label>
-                            <input type="text" name="slip_number" class="form-control" required>
+                            <input type="text" name="slip_number" class="form-control">
                         </div>
 
                         <div class="col-md-4 col-12">

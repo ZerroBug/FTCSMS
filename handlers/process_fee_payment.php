@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_role']) || $_SESSION[
 $student_id       = intval($_POST['student_id'] ?? 0);
 $academic_year_id = intval($_POST['academic_year_id'] ?? 0);
 $bank_name        = trim($_POST['bank_name'] ?? '');
-$slip_number      = trim($_POST['slip_number'] ?? '');
+$slip_number      = trim($_POST['slip_number'] ?? ''); // optional bank slip
 $payment_date     = $_POST['payment_date'] ?? date('Y-m-d');
 $remarks          = trim($_POST['remarks'] ?? '');
 
@@ -24,10 +24,24 @@ if (!isset($_POST['payments']) || empty($_POST['payments'])) {
     exit;
 }
 
+// Function to generate unique invoice/receipt number
+function generateReceiptNo($pdo) {
+    $date = date('Ymd');
+    do {
+        $random = rand(1000, 9999);
+        $receipt_no = "INV{$date}{$random}";
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM fee_payments WHERE receipt_no = ?");
+        $stmt->execute([$receipt_no]);
+        $exists = $stmt->fetchColumn();
+    } while ($exists > 0);
+    return $receipt_no;
+}
+
 try {
     $pdo->beginTransaction();
 
-    $inserted_ids = []; // To track inserted payments
+    $inserted_ids = []; // Track inserted payments
+    $receipt_no = generateReceiptNo($pdo); // Generate auto invoice number
 
     foreach ($_POST['payments'] as $item_id => $value) {
         $item_id = intval($item_id);
@@ -73,6 +87,7 @@ try {
         }
         if ($amount_paid <= 0) continue;
 
+        // Insert payment
         $stmt = $pdo->prepare("
             INSERT INTO fee_payments
             (student_id, fee_category_id, fee_item_id, quantity, amount_paid, receipt_no, academic_year_id, semester, payment_date, bank_name, slip_number, remarks, outstanding_balance, created_at)
@@ -84,12 +99,12 @@ try {
             $item_id,
             $quantity,
             $amount_paid,
-            $slip_number,
+            $receipt_no,      // auto-generated invoice number
             $academic_year_id,
             'Semester 1',
             $payment_date,
             $bank_name,
-            $slip_number,
+            $slip_number,     // optional bank slip for reference
             $remarks,
             max(0, $outstanding - $amount_paid)
         ]);
@@ -99,9 +114,9 @@ try {
 
     $pdo->commit();
 
-    // Redirect to print invoice
+    // Redirect to print invoice page
     if (!empty($inserted_ids)) {
-        $ids = implode(',', $inserted_ids); // Send all inserted payment IDs
+        $ids = implode(',', $inserted_ids);
         header("Location: ../pages/print_invoice.php?payments={$ids}");
         exit;
     } else {
