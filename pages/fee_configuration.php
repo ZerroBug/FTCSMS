@@ -57,21 +57,17 @@ $fee_items = $pdo->query("
     ORDER BY fi.created_at DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <title>Fee Configuration | Accounts</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Favicon -->
     <link rel="icon" type="image/png" href="../assets/images/logo.ico" />
     <link href="../assets/css/styles.css" rel="stylesheet">
-
     <style>
     body {
         background: #f4f6f9;
@@ -97,11 +93,14 @@ $fee_items = $pdo->query("
             padding: 15px;
         }
     }
+
+    small.text-danger {
+        font-size: 0.85rem;
+    }
     </style>
 </head>
 
 <body>
-
     <?php include __DIR__ . '/../includes/accounts_sidebar.php'; ?>
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
@@ -124,16 +123,12 @@ $fee_items = $pdo->query("
 
                 <!-- ===================== CATEGORIES ===================== -->
                 <div class="tab-pane fade show active" id="categories">
-
                     <div class="row">
                         <div class="col-lg-4">
                             <div class="card">
-
                                 <h6>Add / Edit Category</h6>
-
                                 <form id="categoryForm" method="POST" action="../handlers/process_add_fee_category.php">
                                     <input type="hidden" name="id">
-
                                     <div class="mb-3">
                                         <label>Academic Year</label>
                                         <select name="academic_year_id" class="form-select" required>
@@ -144,12 +139,10 @@ $fee_items = $pdo->query("
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
-
                                     <div class="mb-3">
                                         <label>Category Name</label>
                                         <input type="text" name="category_name" class="form-control" required>
                                     </div>
-
                                     <div class="mb-3">
                                         <label>Type</label>
                                         <select name="category_type" class="form-select" required>
@@ -158,7 +151,6 @@ $fee_items = $pdo->query("
                                             <option value="Service">Service</option>
                                         </select>
                                     </div>
-
                                     <div class="mb-3">
                                         <label>Payment Frequency</label>
                                         <select name="payment_frequency" class="form-select" required>
@@ -177,10 +169,8 @@ $fee_items = $pdo->query("
                                             <option value="2024">2024</option>
                                             <option value="2025">2025</option>
                                             <option value="2026">2026</option>
-
                                         </select>
                                     </div>
-
                                     <div class="mb-3">
                                         <label>Learning Area</label>
                                         <select name="learning_area_id" class="form-select" required>
@@ -191,24 +181,19 @@ $fee_items = $pdo->query("
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
-
                                     <div class="mb-3">
                                         <label>Total Amount</label>
                                         <input type="number" step="0.01" name="total_amount" class="form-control"
                                             required>
                                     </div>
-
                                     <button class="btn btn-primary w-100">Save</button>
                                 </form>
-
                             </div>
                         </div>
 
                         <div class="col-lg-8">
                             <div class="card">
-
                                 <h6>Existing Categories</h6>
-
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
@@ -222,7 +207,6 @@ $fee_items = $pdo->query("
                                         </tr>
                                     </thead>
                                     <tbody>
-
                                         <?php $i=1; foreach ($categories as $c): ?>
                                         <tr>
                                             <td><?= $i++ ?></td>
@@ -240,10 +224,8 @@ $fee_items = $pdo->query("
                                             </td>
                                         </tr>
                                         <?php endforeach; ?>
-
                                     </tbody>
                                 </table>
-
                             </div>
                         </div>
                     </div>
@@ -251,22 +233,24 @@ $fee_items = $pdo->query("
 
                 <!-- ===================== FEE ITEMS ===================== -->
                 <div class="tab-pane fade" id="items">
-
                     <div class="row">
                         <div class="col-lg-4">
                             <div class="card">
-
                                 <h6>Add Fee Item</h6>
-
                                 <form method="POST" action="../handlers/process_add_fee_item.php">
-
                                     <div class="mb-3">
                                         <label>Category</label>
-                                        <select name="category_id" class="form-select" required>
+                                        <select name="category_id" id="categorySelect" class="form-select" required>
                                             <option value="">Select</option>
-                                            <?php foreach ($categories as $c): ?>
-                                            <option value="<?= $c['id'] ?>">
+                                            <?php foreach ($categories as $c): 
+                                // Calculate remaining for each category
+                                $used = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM fee_items WHERE category_id=?");
+                                $used->execute([$c['id']]);
+                                $remaining = $c['total_amount'] - $used->fetchColumn();
+                            ?>
+                                            <option value="<?= $c['id'] ?>" data-remaining="<?= $remaining ?>">
                                                 <?= htmlspecialchars($c['category_name'] . ' - ' . $c['area_name']) ?>
+                                                (Remaining: ₵<?= number_format($remaining,2) ?>)
                                             </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -279,20 +263,20 @@ $fee_items = $pdo->query("
 
                                     <div class="mb-3">
                                         <label>Amount</label>
-                                        <input type="number" step="0.01" name="amount" class="form-control" required>
+                                        <input type="number" step="0.01" name="amount" id="amountInput"
+                                            class="form-control" required>
+                                        <small id="remainingInfo" class="text-muted d-block"></small>
+                                        <small id="amountError" class="text-danger d-none"></small>
                                     </div>
 
-                                    <button class="btn btn-primary w-100">Save</button>
+                                    <button type="submit" id="saveBtn" class="btn btn-primary w-100">Save</button>
                                 </form>
-
                             </div>
                         </div>
 
                         <div class="col-lg-8">
                             <div class="card">
-
                                 <h6>Existing Fee Items</h6>
-
                                 <table class="table table-striped">
                                     <thead>
                                         <tr>
@@ -306,7 +290,6 @@ $fee_items = $pdo->query("
                                         </tr>
                                     </thead>
                                     <tbody>
-
                                         <?php $i=1; foreach ($fee_items as $f): ?>
                                         <tr>
                                             <td><?= $i++ ?></td>
@@ -324,20 +307,69 @@ $fee_items = $pdo->query("
                                             </td>
                                         </tr>
                                         <?php endforeach; ?>
-
                                     </tbody>
                                 </table>
-
                             </div>
                         </div>
                     </div>
                 </div>
 
             </div>
-        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    const categorySelect = document.getElementById('categorySelect');
+    const amountInput = document.getElementById('amountInput');
+    const remainingInfo = document.getElementById('remainingInfo');
+    const amountError = document.getElementById('amountError');
+    const saveBtn = document.getElementById('saveBtn');
+
+    let remaining = 0;
+
+    categorySelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (!this.value) {
+            remaining = 0;
+            remainingInfo.textContent = '';
+            amountInput.value = '';
+            saveBtn.disabled = true;
+            return;
+        }
+        remaining = parseFloat(selectedOption.dataset.remaining);
+        remainingInfo.textContent = `Remaining category balance: ₵${remaining.toFixed(2)}`;
+        amountInput.max = remaining;
+        validateAmount();
+    });
+
+    amountInput.addEventListener('input', validateAmount);
+
+    function validateAmount() {
+        const value = parseFloat(amountInput.value) || 0;
+        if (value <= 0) {
+            showError('Amount must be greater than zero');
+            return;
+        }
+        if (value > remaining) {
+            showError(`Amount cannot exceed remaining ₵${remaining.toFixed(2)}`);
+            amountInput.value = remaining.toFixed(2);
+            return;
+        }
+        hideError();
+    }
+
+    function showError(msg) {
+        amountError.textContent = msg;
+        amountError.classList.remove('d-none');
+        saveBtn.disabled = true;
+    }
+
+    function hideError() {
+        amountError.classList.add('d-none');
+        saveBtn.disabled = false;
+    }
+    </script>
+
 </body>
 
 </html>
