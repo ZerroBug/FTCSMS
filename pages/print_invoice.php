@@ -78,7 +78,7 @@ $receipt_no   = $payments[0]['receipt_no'];
 
 <body>
     <div id="invoice">
-        <h3>School Name</h3>
+        <h3>FAST TRACK COLLEGE</h3>
         <h4>Fee Payment Invoice</h4>
         <hr>
         <p>Student: <?= htmlspecialchars($student_name) ?></p>
