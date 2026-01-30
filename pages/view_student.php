@@ -1,11 +1,12 @@
-<?php
+<?php 
 session_start();
-include '../includes/db_connection.php';
+require '../includes/db_connection.php';
 
+/* ===================== AUTH CHECK ================= */
 if (
-    !isset($_SESSION['user_id']) ||
-    !isset($_SESSION['user_role']) ||
-    !in_array($_SESSION['user_role'], ['Super_Admin', 'Administrator'])
+    !isset($_SESSION['user_id']) || 
+    !isset($_SESSION['user_role']) || 
+    !in_array($_SESSION['user_role'], ['Super_Admin', 'Accountant'])
 ) {
     session_unset();
     session_destroy();
@@ -13,244 +14,286 @@ if (
     exit;
 }
 
-if (!isset($_GET['id'])) {
-    $_SESSION['alert'] = "<div class='alert alert-danger'>Invalid Student ID.</div>";
-    header("Location: manage_students.php");
-    exit();
-}
-
-$id = $_GET['id'];
-$user_id = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
 $user_photo = $_SESSION['user_photo'];
 
-// Fetch student info with learning area and guardian info
-$stmt = $pdo->prepare("
+/* ================= FILTERS ================= */
+$academicYear = $_GET['academic_year'] ?? '';
+$categoryId   = $_GET['category_id'] ?? '';
+
+/* ================= DROPDOWNS ================= */
+$academicYears = $pdo->query("SELECT * FROM academic_years ORDER BY year_name DESC")->fetchAll(PDO::FETCH_ASSOC);
+$categories    = $pdo->query("SELECT * FROM fee_categories ORDER BY category_name, year_group")->fetchAll(PDO::FETCH_ASSOC);
+
+/* ================= PAYMENTS QUERY ================= */
+$sql = "
     SELECT 
-        s.*, 
-        la.area_name AS learning_area_name,
-        g.name AS guardian_name,
-        g.relationship AS guardian_relationship,
-        g.contact AS guardian_contact,
-        g.occupation AS guardian_occupation
-    FROM students s
-    LEFT JOIN learning_areas la ON s.learning_area_id = la.id
-    LEFT JOIN guardians g ON s.guardian_id = g.id
-    WHERE s.id = ?
-");
-$stmt->execute([$id]);
-$std = $stmt->fetch(PDO::FETCH_ASSOC);
+        fp.id AS payment_id,
+        fp.amount_paid,
+        fp.payment_date,
+        s.first_name,
+        s.surname,
+        ay.year_name,
+        fc.category_name,
+        fc.year_group,
+        fc.category_type,
+        fi.item_name
+    FROM fee_payments fp
+    JOIN students s ON s.id = fp.student_id
+    JOIN academic_years ay ON ay.id = fp.academic_year_id
+    JOIN fee_categories fc ON fc.id = fp.fee_category_id
+    JOIN fee_items fi ON fi.id = fp.fee_item_id
+    WHERE 1
+";
 
-if (!$std) {
-    $_SESSION['alert'] = "<div class='alert alert-danger'>Student not found.</div>";
-    header("Location: manage_students.php");
-    exit();
-}
+$params = [];
+if ($academicYear) { $sql .= " AND fp.academic_year_id = ?"; $params[] = $academicYear; }
+if ($categoryId) { $sql .= " AND fc.id = ?"; $params[] = $categoryId; }
+
+$sql .= " ORDER BY fp.payment_date DESC";
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$totalPaid = array_sum(array_column($payments, 'amount_paid'));
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>View Student — FTCSMS</title>
+    <meta charset="UTF-8">
+    <title>View Fees</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap + Font Awesome + Poppins -->
+    <!-- CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
 
     <style>
-    .info-card {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
+    body {
+        background: #f4f6f9;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    main.main {
+        margin-left: 260px;
+        padding: 25px;
+    }
+
+    .card {
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    }
+
+    .table thead {
+        background: #343a40;
+        color: #fff;
+        text-align: center;
+    }
+
+    .table tbody tr:hover {
+        background: #f1f1f1;
+    }
+
+    tfoot {
+        background: #e9ecef;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .filter-card {
         padding: 20px;
         margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        background-color: #fff;
     }
 
-    .info-card h5 {
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 5px;
-        margin-bottom: 15px;
+    .dt-button.csvBtn {
+        background-color: #28a745 !important;
+        color: #fff !important;
+        border-radius: 5px;
+        margin-right: 5px;
     }
 
-    .info-table th {
-        width: 40%;
-        background-color: #f8f9fa;
+    .dt-button.excelBtn {
+        background-color: #007bff !important;
+        color: #fff !important;
+        border-radius: 5px;
+    }
+
+    .btn-action {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+    }
+
+    @media(max-width:991px) {
+        main.main {
+            margin-left: 0;
+            padding: 15px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
     }
     </style>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
 <body>
-    <!-- Sidebar -->
     <?php
-    if ($_SESSION['user_role'] === 'Super_Admin') {
-        include '../includes/super_admin_sidebar.php';
-    } elseif ($_SESSION['user_role'] === 'Administrator') {
-        include '../includes/administrator_sidebar.php';
-    }
-    ?>
-
-    <!-- Topbar -->
+if ($_SESSION['user_role'] === 'Super_Admin') include '../includes/super_admin_sidebar.php';
+else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_sidebar.php';
+?>
     <?php include '../includes/topbar.php'; ?>
 
     <main class="main">
-        <div class="container-fluid py-4">
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3><i class="fas fa-user"></i> Student Details</h3>
-
-                <div class="d-flex gap-2">
-                    <a href="print_admission_letter.php?id=<?= $std['id']; ?>" target="_blank" class="btn btn-primary">
-                        <i class="fas fa-print"></i> Admission Letter
-                    </a>
-
-                    <a href="manage_students.php" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                </div>
+        <div class="container-fluid">
+            <div class="mb-4">
+                <h4 class="fw-bold">View Fees Paid</h4>
+                <small class="text-muted">Filter and review payments</small>
             </div>
 
-            <div class="row">
-                <!-- Student Photo -->
-                <div class="col-lg-4 text-center mb-4">
-                    <?php if (!empty($std['photo'])): ?>
-                    <img src="../assets/uploads/students/<?= $std['photo']; ?>" class="img-fluid rounded shadow"
-                        style="max-height: 200px; object-fit: cover;">
-                    <?php else: ?>
-                    <div class="text-muted">
-                        <img src="https://ui-avatars.com/api/?name=<?= $std['surname'].' '.$std['first_name']; ?>&background=2e1b47&color=fff"
-                            class="rounded" style="width: 100px; height: 100px;">
-                    </div>
-                    <?php endif; ?>
-                </div>
+            <!-- FILTER CARD -->
+            <div class="card filter-card shadow-sm">
+                <form method="get" class="row g-3 align-items-end">
 
-                <div class="col-lg-8">
-                    <!-- Personal Information Card -->
-                    <div class="info-card">
-                        <h5><i class="fas fa-id-card"></i> Personal Information</h5>
-                        <table class="table table-sm info-table mb-0">
-                            <tr>
-                                <th>Admission No</th>
-                                <td><?= $std['admission_number']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Year of Admission</th>
-                                <td><?= $std['year_of_admission']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Name</th>
-                                <td><?= $std['surname'].' '.$std['first_name'].' '.$std['middle_name']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Gender</th>
-                                <td><?= $std['gender']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Date of Birth</th>
-                                <td><?= $std['dob']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Languages Spoken</th>
-                                <td><?= $std['languages_spoken']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Hometown</th>
-                                <td><?= $std['hometown']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Student Contact</th>
-                                <td><?= $std['student_contact']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Nationality</th>
-                                <td><?= $std['nationality']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Religion</th>
-                                <td><?= $std['religion']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>NHIS No</th>
-                                <td><?= $std['nhis_no']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Interests</th>
-                                <td><?= $std['interests']; ?></td>
-                            </tr>
-                        </table>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Academic Year</label>
+                        <select name="academic_year" class="form-select">
+                            <option value="">All</option>
+                            <?php foreach($academicYears as $ay): ?>
+                            <option value="<?= $ay['id'] ?>" <?= $academicYear==$ay['id']?'selected':'' ?>>
+                                <?= htmlspecialchars($ay['year_name']) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
-                    <!-- Academic Information Card -->
-                    <div class="info-card">
-                        <h5><i class="fas fa-school"></i> Academic Information</h5>
-                        <table class="table table-sm info-table mb-0">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select name="category_id" class="form-select">
+                            <option value="">All Categories</option>
+                            <?php foreach($categories as $cat): ?>
+                            <?php 
+                                $displayName = htmlspecialchars($cat['category_name']);
+                                if ($cat['year_group'] && $cat['year_group'] != 'All') {
+                                    $displayName .= ' ('.$cat['year_group'].')';
+                                }
+                            ?>
+                            <option value="<?= $cat['id'] ?>" <?= $categoryId==$cat['id']?'selected':'' ?>>
+                                <?= $displayName ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 align-self-end">
+                        <button class="btn btn-primary w-100 shadow-sm"><i class="fas fa-filter me-1"></i>
+                            Filter</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- TABLE -->
+            <div class="card p-3 shadow-sm">
+                <div class="table-responsive">
+                    <table id="feesTable" class="table table-hover table-bordered align-middle">
+                        <thead>
                             <tr>
-                                <th>Learning Area</th>
-                                <td><?= $std['learning_area_name'] ?? 'N/A'; ?></td>
-                            </tr>
-                            <tr>
+                                <th>#</th>
+                                <th>Academic Year</th>
+                                <th>Student</th>
+                                <th>Category</th>
                                 <th>Year Group</th>
-                                <td><?= $std['year_group']; ?></td>
+                                <th>Fee Item</th>
+                                <th>Amount Paid</th>
+                                <th>Date</th>
+                                <th>Action</th>
                             </tr>
+                        </thead>
+                        <tbody>
+                            <?php if($payments): $i=1; foreach($payments as $p): ?>
+                            <tr id="row-<?= $p['payment_id'] ?>">
+                                <td><?= $i++ ?></td>
+                                <td><?= htmlspecialchars($p['year_name']) ?></td>
+                                <td><?= htmlspecialchars($p['first_name'].' '.$p['surname']) ?></td>
+                                <td><?= htmlspecialchars($p['category_name']) ?></td>
+                                <td><?= htmlspecialchars($p['year_group']) ?></td>
+                                <td><?= htmlspecialchars($p['item_name']) ?></td>
+                                <td>₵ <?= number_format($p['amount_paid'],2) ?></td>
+                                <td><?= date('d M, Y', strtotime($p['payment_date'])) ?></td>
+                                <td class="text-center btn-action">
+                                    <button class="btn btn-sm btn-danger delete-btn" data-id="<?= $p['payment_id'] ?>">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; else: ?>
                             <tr>
-                                <th>Last School</th>
-                                <td><?= $std['last_school']; ?></td>
+                                <td colspan="9" class="text-center text-muted">No records found</td>
                             </tr>
+                            <?php endif; ?>
+                        </tbody>
+                        <tfoot>
                             <tr>
-                                <th>Last School Position</th>
-                                <td><?= $std['last_school_position']; ?></td>
+                                <td colspan="6" class="text-end">Total Paid</td>
+                                <td colspan="3">₵ <?= number_format($totalPaid,2) ?></td>
                             </tr>
-                            <tr>
-                                <th>BECE Scores</th>
-                                <td><?= $std['bece_scores']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Residential Status</th>
-                                <td><?= $std['residential_status']; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Hall of Residence</th>
-                                <td><?= $std['hall_of_residence']; ?></td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- Guardian Information Card -->
-                    <div class="info-card">
-                        <h5><i class="fas fa-user-friends"></i> Guardian Information</h5>
-                        <table class="table table-sm info-table mb-0">
-                            <tr>
-                                <th>Guardian Name</th>
-                                <td><?= $std['guardian_name'] ?? 'N/A'; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Relationship</th>
-                                <td><?= $std['guardian_relationship'] ?? 'N/A'; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Contact</th>
-                                <td><?= $std['guardian_contact'] ?? 'N/A'; ?></td>
-                            </tr>
-                            <tr>
-                                <th>Occupation</th>
-                                <td><?= $std['guardian_occupation'] ?? 'N/A'; ?></td>
-                            </tr>
-                        </table>
-                    </div>
-
+                        </tfoot>
+                    </table>
                 </div>
             </div>
+
         </div>
     </main>
 
-    <!-- Bootstrap JS -->
+    <script>
+    $(document).ready(function() {
+        $('#feesTable').DataTable({
+            dom: 'Bfrtip',
+            buttons: [{
+                    extend: 'csvHtml5',
+                    className: 'csvBtn',
+                    text: 'Export CSV'
+                },
+                {
+                    extend: 'excelHtml5',
+                    className: 'excelBtn',
+                    text: 'Export Excel'
+                }
+            ],
+            pageLength: 10,
+            order: [
+                [7, 'desc']
+            ],
+            responsive: true
+        });
+
+        $(document).on('click', '.delete-btn', function() {
+            const paymentId = $(this).data('id');
+            if (confirm('Are you sure you want to delete this payment?')) {
+                $.post('../handlers/delete_fee_payment.php', {
+                    id: paymentId
+                }, function(res) {
+                    if (res == 'success') $('#row-' + paymentId).fadeOut();
+                    else alert('Error deleting payment!');
+                });
+            }
+        });
+    });
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
