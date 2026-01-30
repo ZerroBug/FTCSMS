@@ -15,9 +15,12 @@ $academic_year_id = $_POST['academic_year_id'] ?? null; // New field
 $category_name = trim($_POST['category_name']);
 $category_type = $_POST['category_type'];
 $payment_frequency = $_POST['payment_frequency'];
-$year_group = $_POST['year_group'] ?: null;
+$year_group = trim($_POST['year_group'] ?: 'All'); // Default to 'All'
 $learning_area_id = $_POST['learning_area_id'] ?: null;
 $total_amount = $_POST['total_amount'] ?: 0;
+
+// Concatenate category name with year group
+$full_category_name = $category_name . ' - ' . $year_group;
 
 if ($id) {
     // Update existing category
@@ -26,7 +29,7 @@ if ($id) {
         SET category_name=?, category_type=?, payment_frequency=?, year_group=?, learning_area_id=?, total_amount=?, academic_year_id=?, updated_at=NOW() 
         WHERE id=?
     ");
-    $stmt->execute([$category_name, $category_type, $payment_frequency, $year_group, $learning_area_id, $total_amount, $academic_year_id, $id]);
+    $stmt->execute([$full_category_name, $category_type, $payment_frequency, $year_group, $learning_area_id, $total_amount, $academic_year_id, $id]);
 } else {
     // Insert new category
     $stmt = $pdo->prepare("
@@ -34,7 +37,7 @@ if ($id) {
         (category_name, category_type, payment_frequency, year_group, learning_area_id, total_amount, academic_year_id, status, created_at) 
         VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', NOW())
     ");
-    $stmt->execute([$category_name, $category_type, $payment_frequency, $year_group, $learning_area_id, $total_amount, $academic_year_id]);
+    $stmt->execute([$full_category_name, $category_type, $payment_frequency, $year_group, $learning_area_id, $total_amount, $academic_year_id]);
 }
 
 header("Location: ../pages/fee_configuration.php");
