@@ -1,4 +1,4 @@
-<?php
+<?php 
 session_start();
 require '../includes/db_connection.php';
 
@@ -34,11 +34,14 @@ $sql = "
         fp.payment_date,
         s.first_name,
         s.surname,
+        s.year_group,
+        la.area_name AS learning_area,
         ay.year_name,
         fc.category_name,
         fi.item_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
+    LEFT JOIN learning_areas la ON la.id = s.learning_area_id
     JOIN academic_years ay ON ay.id = fp.academic_year_id
     JOIN fee_categories fc ON fc.id = fp.fee_category_id
     JOIN fee_items fi ON fi.id = fp.fee_item_id
@@ -62,90 +65,12 @@ $totalPaid = array_sum(array_column($payments, 'amount_paid'));
     <meta charset="UTF-8">
     <title>View Fees</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- CSS -->
+    <!-- CSS and JS includes (Bootstrap, DataTables, FontAwesome) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
     <link href="../assets/css/styles.css" rel="stylesheet">
-
-    <style>
-    body {
-        background: #f4f6f9;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    main.main {
-        margin-left: 260px;
-        padding: 25px;
-    }
-
-    .card {
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    }
-
-    .table thead {
-        background: #343a40;
-        color: #fff;
-        text-align: center;
-    }
-
-    .table tbody tr:hover {
-        background: #f1f1f1;
-    }
-
-    tfoot {
-        background: #e9ecef;
-        font-weight: 600;
-        text-align: right;
-    }
-
-    .filter-card {
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-
-    .dt-button.csvBtn {
-        background-color: #28a745 !important;
-        color: #fff !important;
-        border-radius: 5px;
-        margin-right: 5px;
-    }
-
-    .dt-button.excelBtn {
-        background-color: #007bff !important;
-        color: #fff !important;
-        border-radius: 5px;
-    }
-
-    .btn-action {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 5px;
-    }
-
-    @media(max-width:991px) {
-        main.main {
-            margin-left: 0;
-            padding: 15px;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-        }
-    }
-    </style>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
 <body>
@@ -165,7 +90,6 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
             <!-- FILTER CARD -->
             <div class="card filter-card shadow-sm">
                 <form method="get" class="row g-3 align-items-end">
-
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Academic Year</label>
                         <select name="academic_year" class="form-select">
@@ -205,6 +129,8 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
                             <tr>
                                 <th>#</th>
                                 <th>Academic Year</th>
+                                <th>Year Group</th>
+                                <th>Learning Area</th>
                                 <th>Student</th>
                                 <th>Category</th>
                                 <th>Fee Item</th>
@@ -218,6 +144,8 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
                             <tr id="row-<?= $p['payment_id'] ?>">
                                 <td><?= $i++ ?></td>
                                 <td><?= htmlspecialchars($p['year_name']) ?></td>
+                                <td><?= htmlspecialchars($p['year_group'] ?? '-') ?></td>
+                                <td><?= htmlspecialchars($p['learning_area'] ?? '-') ?></td>
                                 <td><?= htmlspecialchars($p['first_name'].' '.$p['surname']) ?></td>
                                 <td><?= htmlspecialchars($p['category_name']) ?></td>
                                 <td><?= htmlspecialchars($p['item_name']) ?></td>
@@ -231,23 +159,26 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
                             </tr>
                             <?php endforeach; else: ?>
                             <tr>
-                                <td colspan="8" class="text-center text-muted">No records found</td>
+                                <td colspan="10" class="text-center text-muted">No records found</td>
                             </tr>
                             <?php endif; ?>
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="5" class="text-end">Total Paid</td>
+                                <td colspan="7" class="text-end">Total Paid</td>
                                 <td colspan="3">₵ <?= number_format($totalPaid,2) ?></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
-
         </div>
     </main>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
     <script>
     $(document).ready(function() {
         $('#feesTable').DataTable({
@@ -265,7 +196,7 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
             ],
             pageLength: 10,
             order: [
-                [6, 'desc']
+                [8, 'desc']
             ],
             responsive: true
         });
@@ -283,7 +214,6 @@ else if ($_SESSION['user_role'] === 'Accountant') include '../includes/accounts_
         });
     });
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
