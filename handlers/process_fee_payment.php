@@ -2,8 +2,15 @@
 session_start();
 require '../includes/db_connection.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../pages/fee_payments.php');
+/* ===================== AUTH CHECK ===================== */
+if (
+    !isset($_SESSION['user_id']) ||
+    !isset($_SESSION['user_role']) ||
+    $_SESSION['user_role'] !== 'Accountant'
+) {
+    session_unset();
+    session_destroy();
+    header("Location: ../index.php");
     exit;
 }
 
@@ -29,7 +36,6 @@ try {
     $pdo->beginTransaction();
 
     foreach ($_POST['payments'] as $item_id => $value) {
-
         $item_id = intval($item_id);
 
         // Fetch fee item
@@ -56,22 +62,23 @@ try {
         $total_paid = floatval($paidStmt->fetchColumn());
 
         // Calculate payment
-        if ($category_type === 'Goods' && is_array($value) && isset($value['quantity'])) {
-            $quantity = max(0, intval($value['quantity']));
+        if ($category_type === 'Goods') {
+            $quantity = max(0, intval($value));
             $amount_paid = $quantity * $unit_price;
-            $outstanding = 0;
-        } else {
+        } else { // Services or other types
             $quantity = 1;
-            $amount_paid = floatval(is_array($value) ? ($value['amount'] ?? 0) : $value);
-            $outstanding = max(0, $unit_price - $total_paid);
-
-            // Prevent overpayment
-            if ($amount_paid > $outstanding && $outstanding > 0) {
-                $amount_paid = $outstanding;
-            }
+            $amount_paid = floatval($value);
         }
 
+        // Skip if nothing is paid
         if ($amount_paid <= 0) continue;
+
+        $outstanding = max(0, $unit_price - $total_paid);
+
+        // Prevent overpayment
+        if ($amount_paid > $outstanding && $outstanding > 0) {
+            $amount_paid = $outstanding;
+        }
 
         // Insert payment
         $stmt = $pdo->prepare("
@@ -87,7 +94,7 @@ try {
             $amount_paid,
             $slip_number,
             $academic_year_id,
-            'Semester 1', // Can be dynamic if needed
+            'Semester 1', // Can be dynamic
             $payment_date,
             $bank_name,
             $slip_number,
@@ -98,7 +105,7 @@ try {
 
     $pdo->commit();
 
-    // Success flash message
+    // Success message
     $_SESSION['alert'] = "<div class='alert alert-success alert-dismissible fade show'>
         <i class='fas fa-check-circle me-2'></i> Payment recorded successfully!
         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
@@ -106,7 +113,6 @@ try {
 
 } catch (Exception $e) {
     $pdo->rollBack();
-    // Error flash message
     $_SESSION['alert'] = "<div class='alert alert-danger alert-dismissible fade show'>
         <i class='fas fa-exclamation-triangle me-2'></i> Error saving payment: " . htmlspecialchars($e->getMessage()) . "
         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
