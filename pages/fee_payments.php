@@ -150,6 +150,7 @@ if (isset($_SESSION['alert'])) {
                                     <th>Type</th>
                                     <th>Item</th>
                                     <th>Learning Area</th>
+                                    <th>Year Group</th>
                                     <th class="text-end">Total (₵)</th>
                                     <th class="text-end">Outstanding (₵)</th>
                                     <th class="text-end">Pay Now / Qty</th>
