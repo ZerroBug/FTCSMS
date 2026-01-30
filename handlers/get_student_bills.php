@@ -1,117 +1,74 @@
 <?php
+session_start();
 require '../includes/db_connection.php';
 
-$student_id = $_GET['student_id'] ?? null;
-$academic_year_id = $_GET['academic_year_id'] ?? null;
-
-if (!$student_id || !$academic_year_id) {
-    exit('<tr><td colspan="7" class="text-center text-muted">Invalid request</td></tr>');
+if (!isset($_GET['student_id'], $_GET['academic_year_id'])) {
+    echo '<tr><td colspan="7" class="text-center text-muted">Invalid request</td></tr>';
+    exit;
 }
 
-/* ===================== STUDENT ===================== */
-$studentStmt = $pdo->prepare("
-    SELECT learning_area_id, year_group
-    FROM students
-    WHERE id = ?
+$student_id = intval($_GET['student_id']);
+$academic_year_id = intval($_GET['academic_year_id']);
+
+// Fetch fee items with category info
+$stmt = $pdo->prepare("
+    SELECT fi.id AS item_id, fi.item_name, fi.amount, fc.category_type, fc.category_name, la.area_name
+    FROM fee_items fi
+    JOIN fee_categories fc ON fi.category_id = fc.id
+    LEFT JOIN learning_areas la ON fc.learning_area_id = la.id
+    WHERE fi.status='Active'
+    ORDER BY fc.category_name, fi.item_name
 ");
-$studentStmt->execute([$student_id]);
-$student = $studentStmt->fetch(PDO::FETCH_ASSOC);
+$stmt->execute();
+$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-if (!$student) {
-    exit('<tr><td colspan="7" class="text-center text-danger">Student not found</td></tr>');
-}
-
-$learning_area_id = $student['learning_area_id'];
-$year_group       = $student['year_group'];
-
-/* ===================== FEE CATEGORIES ===================== */
-$catStmt = $pdo->prepare("
-    SELECT fc.*, la.area_name
-    FROM fee_categories fc
-    LEFT JOIN learning_areas la ON la.id = fc.learning_area_id
-    WHERE fc.academic_year_id = ?
-      AND fc.status = 'Active'
-      AND (fc.learning_area_id = ? OR fc.learning_area_id IS NULL)
-      AND (fc.year_group = ? OR fc.year_group = 'All')
-    ORDER BY fc.category_name
+// Fetch total paid per item for this student
+$paidStmt = $pdo->prepare("
+    SELECT fee_item_id, COALESCE(SUM(amount_paid),0) AS total_paid
+    FROM fee_payments
+    WHERE student_id=? AND academic_year_id=?
+    GROUP BY fee_item_id
 ");
-$catStmt->execute([$academic_year_id, $learning_area_id, $year_group]);
-$categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
-
-if (!$categories) {
-    exit('<tr><td colspan="7" class="text-center text-muted">No fees assigned</td></tr>');
+$paidStmt->execute([$student_id, $academic_year_id]);
+$paidData = [];
+foreach ($paidStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $paidData[$row['fee_item_id']] = floatval($row['total_paid']);
 }
 
-$output = '';
+if (!$items) {
+    echo '<tr><td colspan="7" class="text-center text-muted">No fee items found</td></tr>';
+    exit;
+}
 
-foreach ($categories as $cat) {
+foreach ($items as $item) {
+    $item_id = $item['item_id'];
+    $unit_price = floatval($item['amount']);
+    $total_paid = $paidData[$item_id] ?? 0;
+    $outstanding = max(0, $unit_price - $total_paid);
+    
+    if ($outstanding <= 0 && $item['category_type'] !== 'Goods') continue; // Skip fully paid services
 
-    /* ===================== ITEMS ===================== */
-    $itemStmt = $pdo->prepare("
-        SELECT *
-        FROM fee_items
-        WHERE category_id = ?
-          AND status = 'Active'
-    ");
-    $itemStmt->execute([$cat['id']]);
-    $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+    echo '<tr>';
+    echo '<td>' . htmlspecialchars($item['category_name']) . '</td>';
+    echo '<td>' . htmlspecialchars($item['category_type']) . '</td>';
+    echo '<td>' . htmlspecialchars($item['item_name']) . '</td>';
+    echo '<td>' . htmlspecialchars($item['area_name'] ?? '-') . '</td>';
+    echo '<td class="text-end">' . number_format($unit_price, 2) . '</td>';
+    echo '<td class="text-end">' . number_format($outstanding, 2) . '</td>';
 
-    foreach ($items as $item) {
-
-        /* ===== Total Paid ===== */
-        $paidStmt = $pdo->prepare("
-            SELECT COALESCE(SUM(amount_paid),0)
-            FROM fee_payments
-            WHERE student_id = ?
-              AND academic_year_id = ?
-              AND fee_category_id = ?
-              AND fee_item_id = ?
-        ");
-        $paidStmt->execute([
-            $student_id,
-            $academic_year_id,
-            $cat['id'],
-            $item['id']
-        ]);
-        $paid = (float) $paidStmt->fetchColumn();
-
-        $total = (float) $item['amount'];
-        $outstanding = max(0, $total - $paid);
-
-        if ($outstanding <= 0) {
-            continue; // fully paid
-        }
-
-        $isGoods = ($cat['category_type'] === 'Goods');
-
-        $input = $isGoods
-            ? '<input type="number" min="0" max="5"
-                class="form-control pay-input goods-quantity"
-                data-price="'.$item['amount'].'"
-                name="quantity[]"
-                value="0">'
-            : '<input type="number" step="0.01"
-                class="form-control pay-input"
-                data-outstanding="'.$outstanding.'"
-                name="amount_paid[]"
-                value="0.00">';
-
-        $output .= '
-        <tr>
-            <td>'.$cat['category_name'].'</td>
-            <td>'.$cat['category_type'].'</td>
-            <td>'.$item['item_name'].'</td>
-            <td>'.($cat['area_name'] ?? 'All').'</td>
-            <td class="text-end">'.number_format($total,2).'</td>
-            <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
-            <td class="text-end">
-                '.$input.'
-                <input type="hidden" name="fee_category_id[]" value="'.$cat['id'].'">
-                <input type="hidden" name="fee_item_id[]" value="'.$item['id'].'">
-                <input type="hidden" name="outstanding[]" value="'.$outstanding.'">
-            </td>
-        </tr>';
+    // Input for payment
+    if ($item['category_type'] === 'Goods') {
+        echo '<td class="text-end">
+            <input type="number" name="payments[' . $item_id . ']" 
+                class="form-control pay-input goods-quantity" min="0" max="5" data-price="' . $unit_price . '" value="0">
+        </td>';
+    } else {
+        echo '<td class="text-end">
+            <input type="number" name="payments[' . $item_id . ']" 
+                class="form-control pay-input" min="0" max="' . $outstanding . '" step="0.01" data-outstanding="' . $outstanding . '" value="0.00">
+        </td>';
     }
-}
 
-echo $output ?: '<tr><td colspan="7" class="text-center text-muted">All fees cleared</td></tr>';
+    echo '</tr>';
+}
+?>
