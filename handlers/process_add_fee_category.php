@@ -20,7 +20,8 @@ $learning_area_id = $_POST['learning_area_id'] ?: null;
 $total_amount = $_POST['total_amount'] ?: 0;
 
 // Concatenate category name with year group
-$full_category_name = $category_name . ' - ' . $year_group;
+$full_category_name = $category_name . ' (Cohort ' . $year_group . ')';
+
 
 if ($id) {
     // Update existing category
