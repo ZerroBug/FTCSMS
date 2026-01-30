@@ -29,12 +29,13 @@ $catStmt = $pdo->prepare("
     SELECT fc.*, la.area_name
     FROM fee_categories fc
     LEFT JOIN learning_areas la ON la.id = fc.learning_area_id
-    WHERE fc.status = 'Active'
+    WHERE fc.academic_year_id = ?
+      AND fc.status = 'Active'
       AND (fc.learning_area_id = ? OR fc.learning_area_id IS NULL)
       AND (fc.year_group = ? OR fc.year_group = 'All')
     ORDER BY fc.category_name
 ");
-$catStmt->execute([$learning_area_id, $year_group]);
+$catStmt->execute([$academic_year_id, $learning_area_id, $year_group]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (!$categories) {
@@ -49,7 +50,7 @@ foreach ($categories as $cat) {
     $itemStmt = $pdo->prepare("
         SELECT *
         FROM fee_items
-        WHERE category_id = ? 
+        WHERE category_id = ?
           AND status = 'Active'
     ");
     $itemStmt->execute([$cat['id']]);
@@ -77,8 +78,8 @@ foreach ($categories as $cat) {
         $total = (float) $item['amount'];
         $outstanding = max(0, $total - $paid);
 
-        if ($outstanding <= 0 && $cat['category_type'] !== 'Goods') {
-            continue; // fully paid for Services
+        if ($outstanding <= 0) {
+            continue; // fully paid
         }
 
         $isGoods = ($cat['category_type'] === 'Goods');
@@ -97,9 +98,9 @@ foreach ($categories as $cat) {
 
         $output .= '
         <tr>
-            <td>'.htmlspecialchars($cat['category_name']).'</td>
-            <td>'.htmlspecialchars($cat['category_type']).'</td>
-            <td>'.htmlspecialchars($item['item_name']).'</td>
+            <td>'.$cat['category_name'].'</td>
+            <td>'.$cat['category_type'].'</td>
+            <td>'.$item['item_name'].'</td>
             <td>'.($cat['area_name'] ?? 'All').'</td>
             <td class="text-end">'.number_format($total,2).'</td>
             <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
