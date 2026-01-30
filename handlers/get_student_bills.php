@@ -10,19 +10,29 @@ if (!isset($_GET['student_id'], $_GET['academic_year_id'])) {
 $student_id = intval($_GET['student_id']);
 $academic_year_id = intval($_GET['academic_year_id']);
 
-// Fetch fee items with category info
+// Get student's learning area
+$laStmt = $pdo->prepare("SELECT learning_area_id FROM students WHERE id=?");
+$laStmt->execute([$student_id]);
+$student_la_id = $laStmt->fetchColumn();
+if (!$student_la_id) {
+    echo '<tr><td colspan="7" class="text-center text-muted">Student has no learning area assigned</td></tr>';
+    exit;
+}
+
+// Fetch fee items for this learning area and academic year
 $stmt = $pdo->prepare("
     SELECT fi.id AS item_id, fi.item_name, fi.amount, fc.category_type, fc.category_name, la.area_name
     FROM fee_items fi
     JOIN fee_categories fc ON fi.category_id = fc.id
     LEFT JOIN learning_areas la ON fc.learning_area_id = la.id
-    WHERE fi.status='Active'
+    WHERE fc.learning_area_id = ? 
+      AND fi.status='Active'
     ORDER BY fc.category_name, fi.item_name
 ");
-$stmt->execute();
+$stmt->execute([$student_la_id]);
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch total paid per item for this student
+// Fetch total paid per item for this student & academic year
 $paidStmt = $pdo->prepare("
     SELECT fee_item_id, COALESCE(SUM(amount_paid),0) AS total_paid
     FROM fee_payments
@@ -36,7 +46,7 @@ foreach ($paidStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
 }
 
 if (!$items) {
-    echo '<tr><td colspan="7" class="text-center text-muted">No fee items found</td></tr>';
+    echo '<tr><td colspan="7" class="text-center text-muted">No fee items configured for this student\'s learning area</td></tr>';
     exit;
 }
 
@@ -45,8 +55,8 @@ foreach ($items as $item) {
     $unit_price = floatval($item['amount']);
     $total_paid = $paidData[$item_id] ?? 0;
     $outstanding = max(0, $unit_price - $total_paid);
-    
-    if ($outstanding <= 0 && $item['category_type'] !== 'Goods') continue; // Skip fully paid services
+
+    if ($outstanding <= 0 && $item['category_type'] !== 'Goods') continue;
 
     echo '<tr>';
     echo '<td>' . htmlspecialchars($item['category_name']) . '</td>';
@@ -56,7 +66,6 @@ foreach ($items as $item) {
     echo '<td class="text-end">' . number_format($unit_price, 2) . '</td>';
     echo '<td class="text-end">' . number_format($outstanding, 2) . '</td>';
 
-    // Input for payment
     if ($item['category_type'] === 'Goods') {
         echo '<td class="text-end">
             <input type="number" name="payments[' . $item_id . ']" 
@@ -71,4 +80,3 @@ foreach ($items as $item) {
 
     echo '</tr>';
 }
-?>
