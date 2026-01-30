@@ -45,7 +45,6 @@ if (!$categories) {
 $output = '';
 
 foreach ($categories as $cat) {
-
     /* ===================== ITEMS ===================== */
     $itemStmt = $pdo->prepare("
         SELECT *
@@ -57,7 +56,6 @@ foreach ($categories as $cat) {
     $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($items as $item) {
-
         /* ===== Total Paid ===== */
         $paidStmt = $pdo->prepare("
             SELECT COALESCE(SUM(amount_paid),0)
@@ -106,6 +104,9 @@ foreach ($categories as $cat) {
             <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
             <td class="text-end">
                 '.$input.'
+                <input type="hidden" name="fee_category_id[]" value="'.$cat['id'].'">
+                <input type="hidden" name="fee_item_id[]" value="'.$item['id'].'">
+                <input type="hidden" name="outstanding[]" value="'.$outstanding.'">
             </td>
         </tr>';
     }
