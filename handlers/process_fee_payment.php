@@ -9,7 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 /* ===================== SANITIZE INPUTS ===================== */
 $student_id       = intval($_POST['student_id']);
-$class_id         = intval($_POST['class_id']);
 $academic_year_id = intval($_POST['academic_year_id']);
 $bank_name        = trim($_POST['bank_name']);
 $slip_number      = trim($_POST['slip_number']);
@@ -77,19 +76,18 @@ try {
         // Insert payment
         $stmt = $pdo->prepare("
             INSERT INTO fee_payments
-            (student_id, class_id, fee_category_id, fee_item_id, quantity, amount_paid, receipt_no, academic_year_id, semester, payment_date, bank_name, slip_number, remarks, outstanding_balance, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            (student_id, fee_category_id, fee_item_id, quantity, amount_paid, receipt_no, academic_year_id, semester, payment_date, bank_name, slip_number, remarks, outstanding_balance, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $student_id,
-            $class_id,
             $category_id,
             $item_id,
             $quantity,
             $amount_paid,
             $slip_number,
             $academic_year_id,
-            'Semester 1', // Change dynamically if needed
+            'Semester 1', // Can be dynamic if needed
             $payment_date,
             $bank_name,
             $slip_number,
