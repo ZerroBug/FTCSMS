@@ -29,13 +29,12 @@ $catStmt = $pdo->prepare("
     SELECT fc.*, la.area_name
     FROM fee_categories fc
     LEFT JOIN learning_areas la ON la.id = fc.learning_area_id
-    WHERE fc.academic_year_id = ?
-      AND fc.status = 'Active'
+    WHERE fc.status = 'Active'
       AND (fc.learning_area_id = ? OR fc.learning_area_id IS NULL)
       AND (fc.year_group = ? OR fc.year_group = 'All')
     ORDER BY fc.category_name
 ");
-$catStmt->execute([$academic_year_id, $learning_area_id, $year_group]);
+$catStmt->execute([$learning_area_id, $year_group]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (!$categories) {
@@ -50,7 +49,7 @@ foreach ($categories as $cat) {
     $itemStmt = $pdo->prepare("
         SELECT *
         FROM fee_items
-        WHERE category_id = ?
+        WHERE category_id = ? 
           AND status = 'Active'
     ");
     $itemStmt->execute([$cat['id']]);
@@ -78,8 +77,8 @@ foreach ($categories as $cat) {
         $total = (float) $item['amount'];
         $outstanding = max(0, $total - $paid);
 
-        if ($outstanding <= 0) {
-            continue; // fully paid
+        if ($outstanding <= 0 && $cat['category_type'] !== 'Goods') {
+            continue; // fully paid for Services
         }
 
         $isGoods = ($cat['category_type'] === 'Goods');
@@ -88,27 +87,24 @@ foreach ($categories as $cat) {
             ? '<input type="number" min="0" max="5"
                 class="form-control pay-input goods-quantity"
                 data-price="'.$item['amount'].'"
-                name="quantity[]"
+                name="payments['.$item['id'].'][quantity]"
                 value="0">'
             : '<input type="number" step="0.01"
                 class="form-control pay-input"
                 data-outstanding="'.$outstanding.'"
-                name="amount_paid[]"
+                name="payments['.$item['id'].']"
                 value="0.00">';
 
         $output .= '
         <tr>
-            <td>'.$cat['category_name'].'</td>
-            <td>'.$cat['category_type'].'</td>
-            <td>'.$item['item_name'].'</td>
+            <td>'.htmlspecialchars($cat['category_name']).'</td>
+            <td>'.htmlspecialchars($cat['category_type']).'</td>
+            <td>'.htmlspecialchars($item['item_name']).'</td>
             <td>'.($cat['area_name'] ?? 'All').'</td>
             <td class="text-end">'.number_format($total,2).'</td>
             <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
             <td class="text-end">
                 '.$input.'
-                <input type="hidden" name="fee_category_id[]" value="'.$cat['id'].'">
-                <input type="hidden" name="fee_item_id[]" value="'.$item['id'].'">
-                <input type="hidden" name="outstanding[]" value="'.$outstanding.'">
             </td>
         </tr>';
     }
