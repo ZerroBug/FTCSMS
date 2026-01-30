@@ -164,7 +164,7 @@ $fee_items = $pdo->query("
                                         <label>Year Group</label>
                                         <select name="year_group" class="form-select" required>
                                             <option value="">Select</option>
-                                            <option value="All">All</option>
+                                            <!-- <option value="All">All</option> -->
                                             <option value="2023">2023</option>
                                             <option value="2024">2024</option>
                                             <option value="2025">2025</option>
