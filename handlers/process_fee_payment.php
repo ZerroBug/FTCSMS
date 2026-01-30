@@ -15,11 +15,11 @@ if (
 }
 
 /* ===================== SANITIZE INPUTS ===================== */
-$student_id       = intval($_POST['student_id']);
-$academic_year_id = intval($_POST['academic_year_id']);
-$bank_name        = trim($_POST['bank_name']);
-$slip_number      = trim($_POST['slip_number']);
-$payment_date     = $_POST['payment_date'];
+$student_id       = intval($_POST['student_id'] ?? 0);
+$academic_year_id = intval($_POST['academic_year_id'] ?? 0);
+$bank_name        = trim($_POST['bank_name'] ?? '');
+$slip_number      = trim($_POST['slip_number'] ?? '');
+$payment_date     = $_POST['payment_date'] ?? date('Y-m-d');
 $remarks          = trim($_POST['remarks'] ?? '');
 
 /* ===================== VALIDATE PAYMENTS ===================== */
@@ -38,36 +38,37 @@ try {
     foreach ($_POST['payments'] as $item_id => $value) {
         $item_id = intval($item_id);
 
-        // Fetch fee item
-        $itemStmt = $pdo->prepare("SELECT category_id, amount FROM fee_items WHERE id=?");
+        // Fetch fee item and its category
+        $itemStmt = $pdo->prepare("
+            SELECT fi.id, fi.category_id, fi.amount, fc.category_type
+            FROM fee_items fi
+            JOIN fee_categories fc ON fc.id = fi.category_id
+            WHERE fi.id = ?
+        ");
         $itemStmt->execute([$item_id]);
         $item = $itemStmt->fetch(PDO::FETCH_ASSOC);
         if (!$item) continue;
 
-        $category_id = $item['category_id'];
-        $unit_price  = floatval($item['amount']);
+        $category_id   = $item['category_id'];
+        $unit_price    = floatval($item['amount']);
+        $category_type = $item['category_type'];
 
-        // Get category type
-        $catStmt = $pdo->prepare("SELECT category_type FROM fee_categories WHERE id=?");
-        $catStmt->execute([$category_id]);
-        $category_type = $catStmt->fetchColumn();
-
-        // Total paid before
+        // Get total already paid for this student/item/year
         $paidStmt = $pdo->prepare("
-            SELECT COALESCE(SUM(amount_paid),0) 
-            FROM fee_payments 
+            SELECT COALESCE(SUM(amount_paid),0)
+            FROM fee_payments
             WHERE student_id=? AND fee_item_id=? AND academic_year_id=?
         ");
         $paidStmt->execute([$student_id, $item_id, $academic_year_id]);
         $total_paid = floatval($paidStmt->fetchColumn());
 
-        // Calculate payment
+        // Determine payment amount based on category type
         if ($category_type === 'Goods') {
-            $quantity = max(0, intval($value));
+            $quantity = isset($value['quantity']) ? max(0, intval($value['quantity'])) : 0;
             $amount_paid = $quantity * $unit_price;
         } else { // Services or other types
             $quantity = 1;
-            $amount_paid = floatval($value);
+            $amount_paid = isset($value['amount']) ? floatval($value['amount']) : 0;
         }
 
         // Skip if nothing is paid
@@ -79,6 +80,9 @@ try {
         if ($amount_paid > $outstanding && $outstanding > 0) {
             $amount_paid = $outstanding;
         }
+
+        // Skip if fully paid
+        if ($amount_paid <= 0) continue;
 
         // Insert payment
         $stmt = $pdo->prepare("
@@ -94,7 +98,7 @@ try {
             $amount_paid,
             $slip_number,
             $academic_year_id,
-            'Semester 1', // Can be dynamic
+            'Semester 1', // Can be made dynamic later
             $payment_date,
             $bank_name,
             $slip_number,
@@ -105,7 +109,6 @@ try {
 
     $pdo->commit();
 
-    // Success message
     $_SESSION['alert'] = "<div class='alert alert-success alert-dismissible fade show'>
         <i class='fas fa-check-circle me-2'></i> Payment recorded successfully!
         <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
@@ -119,7 +122,7 @@ try {
     </div>";
 }
 
-/* Redirect back to fee payment page to avoid duplicate alert on refresh */
+/* Redirect back to fee payment page */
 header('Location: ../pages/fee_payments.php');
 exit;
 ?>
