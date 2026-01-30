@@ -49,16 +49,25 @@ $todayCollected = $stmt->fetchColumn();
 
 /* ===================== CHART DATA ===================== */
 
-// Fees Collected by Fee Category (NO CLASSES)
+// Fees Collected by Category (WITH YEAR GROUP + LEARNING AREA)
 $stmt = $pdo->prepare("
     SELECT 
-        fc.category_name,
+        CONCAT(
+            fc.category_name,
+            ' — ',
+            IFNULL(fc.year_group, 'All'),
+            ' (',
+            IFNULL(la.area_name, 'All Areas'),
+            ')'
+        ) AS category_label,
         COALESCE(SUM(fp.amount_paid), 0) AS total
     FROM fee_payments fp
     INNER JOIN fee_categories fc 
         ON fp.fee_category_id = fc.id
+    LEFT JOIN learning_areas la 
+        ON la.id = fc.learning_area_id
     WHERE fp.academic_year_id = ?
-    GROUP BY fc.id
+    GROUP BY fc.id, fc.year_group, la.area_name
     ORDER BY total DESC
 ");
 $stmt->execute([$activeYearId]);
@@ -90,7 +99,6 @@ $monthlyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="../assets/css/styles.css" rel="stylesheet">
 
@@ -173,7 +181,7 @@ $monthlyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="chart-box">
-                        <h6 class="mb-3">Fees Collected by Fee Category</h6>
+                        <h6 class="mb-3">Fees Collected by Category (Cohort & Learning Area)</h6>
                         <canvas id="categoryChart"></canvas>
                     </div>
                 </div>
@@ -193,7 +201,7 @@ $monthlyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
     new Chart(document.getElementById('categoryChart'), {
         type: 'doughnut',
         data: {
-            labels: <?= json_encode(array_column($categoryChart, 'category_name')) ?>,
+            labels: <?= json_encode(array_column($categoryChart, 'category_label')) ?>,
             datasets: [{
                 data: <?= json_encode(array_column($categoryChart, 'total')) ?>
             }]
@@ -211,9 +219,9 @@ $monthlyData = $stmt->fetchAll(PDO::FETCH_ASSOC);
         type: 'line',
         data: {
             labels: <?= json_encode(array_map(
-                fn($m) => date("M", mktime(0, 0, 0, $m['month'], 1)),
-                $monthlyData
-            )) ?>,
+            fn($m) => date("M", mktime(0, 0, 0, $m['month'], 1)),
+            $monthlyData
+        )) ?>,
             datasets: [{
                 data: <?= json_encode(array_column($monthlyData, 'total')) ?>,
                 fill: true,
