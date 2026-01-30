@@ -1,15 +1,15 @@
 <?php
 require '../includes/db_connection.php';
 
-$student_id = intval($_GET['student_id'] ?? 0);
+$student_id       = intval($_GET['student_id'] ?? 0);
 $academic_year_id = intval($_GET['academic_year_id'] ?? 0);
 
 if (!$student_id || !$academic_year_id) {
     exit('<tr><td colspan="7" class="text-center text-muted">Invalid request</td></tr>');
 }
 
-// Fetch student info
-$stmt = $pdo->prepare("SELECT learning_area_id FROM students WHERE id = ?");
+// Fetch student info: learning_area_id and year_group
+$stmt = $pdo->prepare("SELECT learning_area_id, year_group, CONCAT(first_name,' ',surname) AS student_name FROM students WHERE id = ?");
 $stmt->execute([$student_id]);
 $student = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -18,8 +18,9 @@ if (!$student) {
 }
 
 $learning_area_id = $student['learning_area_id'];
+$year_group       = $student['year_group'] ?? 'All';
 
-// Fetch active fee categories for this learning area and academic year
+// Fetch active fee categories for this student (learning area, year group, academic year)
 $catStmt = $pdo->prepare("
     SELECT fc.*, la.area_name
     FROM fee_categories fc
@@ -27,9 +28,10 @@ $catStmt = $pdo->prepare("
     WHERE fc.academic_year_id = ?
       AND fc.status = 'Active'
       AND (fc.learning_area_id = ? OR fc.learning_area_id IS NULL)
+      AND (fc.year_group = ? OR fc.year_group = 'All')
     ORDER BY fc.category_name
 ");
-$catStmt->execute([$academic_year_id, $learning_area_id]);
+$catStmt->execute([$academic_year_id, $learning_area_id, $year_group]);
 $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (!$categories) {
@@ -66,6 +68,7 @@ foreach ($categories as $cat) {
 
         $isGoods = ($cat['category_type'] === 'Goods');
 
+        // Input field: quantity for goods, amount for service
         $input = $isGoods
             ? '<input type="number" min="0" max="5" class="form-control pay-input goods-quantity" data-price="'.$item['amount'].'" name="payments['.$item['id'].'][quantity]" value="0">'
             : '<input type="number" step="0.01" class="form-control pay-input" data-outstanding="'.$outstanding.'" name="payments['.$item['id'].'][amount]" value="0.00">';
@@ -76,6 +79,7 @@ foreach ($categories as $cat) {
             <td>'.htmlspecialchars($cat['category_type']).'</td>
             <td>'.htmlspecialchars($item['item_name']).'</td>
             <td>'.($cat['area_name'] ?? 'All').'</td>
+            <td>'.htmlspecialchars($cat['year_group']).'</td>
             <td class="text-end">'.number_format($total,2).'</td>
             <td class="text-end text-danger fw-semibold">'.number_format($outstanding,2).'</td>
             <td class="text-end">
@@ -88,4 +92,5 @@ foreach ($categories as $cat) {
     }
 }
 
-echo $output ?: '<tr><td colspan="7" class="text-center text-muted">All fees cleared</td></tr>';
+echo $output ?: '<tr><td colspan="8" class="text-center text-muted">All fees cleared</td></tr>';
+?>
