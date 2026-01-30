@@ -168,6 +168,17 @@ $fee_items = $pdo->query("
                                             <option value="NA">NA</option>
                                         </select>
                                     </div>
+                                    <div class="mb-3">
+                                        <label>Year Group</label>
+                                        <select name="year_group" class="form-select" required>
+                                            <option value="">Select</option>
+                                            <option value="All">All</option>
+                                            <?php foreach ($year_groups as $yg): ?>
+                                            <option value="<?= $yg['id'] ?>"><?= htmlspecialchars($yg['year_name']) ?>
+                                            </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
 
                                     <div class="mb-3">
                                         <label>Learning Area</label>
