@@ -2,15 +2,15 @@
 session_start();
 include '../includes/db_connection.php';
 
-// Fetch classes from database
-$classes = $pdo->query("SELECT id, class_name, year_group FROM classes ORDER BY class_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+// Fetch learning areas from database
+$learningAreas = $pdo->query("SELECT id, area_name FROM learning_areas ORDER BY area_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-// Prepare class options as a string
-$classOptions = [];
-foreach ($classes as $class) {
-    $classOptions[] = "{$class['id']} ({$class['year_group']} - {$class['class_name']})";
+// Prepare learning area options as a string
+$areaOptions = [];
+foreach ($learningAreas as $area) {
+    $areaOptions[] = "{$area['id']} ({$area['area_name']})";
 }
-$classOptionsStr = implode(' | ', $classOptions);
+$areaOptionsStr = implode(' | ', $areaOptions);
 
 header('Content-Type: text/csv');
 header('Content-Disposition: attachment; filename="student_mandatory_template.csv"');
@@ -19,7 +19,6 @@ $output = fopen('php://output', 'w');
 
 // Mandatory header row
 fputcsv($output, [
-    'admission_number',
     'level',
     'first_name',
     'surname',
@@ -28,23 +27,16 @@ fputcsv($output, [
     'nationality',
     'religion',
     'residential_status',
-    'student_class (ID from Classes table)',
+    'learning_area_id (ID from Learning Areas table)',
     'student_contact',
     'guardian_name',
     'guardian_contact'
 ]);
 
-// Add 1 example row with admission number
-$exampleClassId = $classes[0]['id']; // pick first class as example
-$year_group = $classes[0]['year_group'] ?? '2025'; // default if missing
-
-// Generate admission number in same format as your enrollment script
-$current_year = date('Y');
-$auto_number = '0001';
-$admission_number = "FTC/{$year_group}/{$auto_number}";
+// Add 1 example row
+$exampleAreaId = $learningAreas[0]['id'] ?? ''; // pick first learning area as example
 
 fputcsv($output, [
-    $admission_number, // admission_number
     'SHS-1',           // level
     'John',            // first_name
     'Doe',             // surname
@@ -53,14 +45,14 @@ fputcsv($output, [
     'Ghanaian',        // nationality
     'Christianity',    // religion
     'Day',             // residential_status
-    $exampleClassId,   // student_class (users pick an ID)
+    $exampleAreaId,    // learning_area_id
     '0244123456',      // student_contact
     'Jane Doe',        // guardian_name
     '0244987654'       // guardian_contact
 ]);
 
-// Optional: add class options as a comment row
-fputcsv($output, ["# Available Classes: {$classOptionsStr}"]);
+// Optional: add learning area options as a comment row
+fputcsv($output, ["# Available Learning Areas: {$areaOptionsStr}"]);
 
 fclose($output);
 exit;
