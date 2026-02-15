@@ -26,7 +26,7 @@ $user_name = $_SESSION['user_name'];
 $user_email = $_SESSION['user_email'];
 $user_photo = $_SESSION['user_photo'];
 
-// Fetch student WITHOUT class info but with guardian info
+// Fetch student WITH year_group from students table
 $stmt = $pdo->prepare("
     SELECT 
         s.*, 
@@ -56,7 +56,6 @@ if (!$std) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>View Student — FTCSMS</title>
 
-    <!-- Bootstrap + Font Awesome + Poppins -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -94,10 +93,7 @@ if (!$std) {
 
 <body>
 
-    <!-- Sidebar -->
     <?php include '../includes/super_admin_sidebar.php'; ?>
-
-    <!-- Topbar -->
     <?php include '../includes/topbar.php'; ?>
 
     <main class="main">
@@ -118,6 +114,7 @@ if (!$std) {
             </div>
 
             <div class="row">
+
                 <!-- Student Photo -->
                 <div class="col-lg-4 text-center mb-4">
                     <?php if (!empty($std['photo'])): ?>
@@ -190,6 +187,10 @@ if (!$std) {
                     <div class="info-card">
                         <h5><i class="fas fa-school"></i> Academic Information</h5>
                         <table class="table table-sm info-table mb-0">
+                            <tr>
+                                <th>Year Group</th>
+                                <td><?= $std['year_group']; ?></td>
+                            </tr>
                             <tr>
                                 <th>Last School</th>
                                 <td><?= $std['last_school']; ?></td>
